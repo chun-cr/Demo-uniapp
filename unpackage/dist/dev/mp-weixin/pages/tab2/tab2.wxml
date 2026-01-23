@@ -1,0 +1,1 @@
+<view class="tab-container data-v-4cfd2326"><view class="tab-title data-v-4cfd2326">Tab 页面 2</view><button data-event-opts="{{[['tap',[['goToTab1',['$event']]]]]}}" class="btn data-v-4cfd2326" bindtap="__e">跳转到 Tab1（switchTab）</button></view>

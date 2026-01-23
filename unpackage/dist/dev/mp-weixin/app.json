@@ -1,0 +1,48 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/target/target",
+    "pages/tab1/tab1",
+    "pages/tab2/tab2",
+    "pages/list/list",
+    "pages/detail/detail",
+    "pages/face-detection/index",
+    "pages/record/record-page",
+    "pages/follow-reading/follow-reading",
+    "pages/record/test-page",
+    "pages/canvas-record/canvas-record"
+  ],
+  "subPackages": [],
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "uni-app",
+    "navigationBarBackgroundColor": "#F8F8F8",
+    "backgroundColor": "#F8F8F8"
+  },
+  "tabBar": {
+    "color": "#7A7E83",
+    "selectedColor": "#3cc51f",
+    "borderStyle": "black",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/tab1/tab1",
+        "iconPath": "static/c1.png",
+        "selectedIconPath": "static/c1.png",
+        "text": "Tab1"
+      },
+      {
+        "pagePath": "pages/tab2/tab2",
+        "iconPath": "static/c2.png",
+        "selectedIconPath": "static/c2.png",
+        "text": "Tab2"
+      }
+    ]
+  },
+  "permission": {
+    "scope.camera": {
+      "desc": "需要摄像头权限进行面部检测"
+    }
+  },
+  "usingComponents": {}
+}

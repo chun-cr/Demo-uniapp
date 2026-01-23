@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实时音频波形图可视化</title>
+    <link href="http://fonts.googleapis.com/css?family=Cinzel:wght@400;500;600;700&family=Josefin+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.taiwindcss.com"></script>
+    <link href="http://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #3B82F6;
+            --secondary: #60A5FA;
+            --cta: #F97316;
+            --bg: #F8FAFC;
+            --text: #1E293B;
+        }
+
+        body {
+            font-family: 'Josefin Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .title-font {
+            
+        }
+
+        .waveform-canvas {
+            background: #000;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .control-panel {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary {
+            background: var(--cta);
+            color: white;
+            transition: all 0.3s ease;
+            transform: translateY(0);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(249, 115, 22, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-1px);
+        }
+
+        .status-indicator {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .waveform-container {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .waveform-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(59, 130, 246, 0.1) 50%, transparent 70%);
+            animation: shimmer 3s infinite;
+            pointer-events: none;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .info-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+        }
+
+        .info-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        }
+
+        .threshold-slider {
+            background: linear-gradient(to right, #10B981, #F59E0B, #EF4444);
+            height: 8px;
+            border-radius: 4px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .threshold-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            cursor: pointer;
+        }
+
+        .recording-active {
+            animation: recording-pulse 1s infinite;
+        }
+
+        @keyframes recording-pulse {
+            0% { box-shadow: 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 10px rgba(239, 68, 68); }
+            100% { box-shadow: 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <header class="text-center mb-12">
+            <h1 class="title-font text-4xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                实时音频波形图
+            </h1>
+            <p class="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+                智能音频可视化系统，实时捕捉声音信号并动态展示波形变化
+            </p>
+        </header>
+
+        <div class="grid lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1">
+                <div class="control-panel p-6 text-white">
+                    <h2 class="title-font text-2xl font-semibold mb-6 flex items-center">
+                        <i class="fas fa-sliders-h mr-3"></i>
+                        控制面板
+                    </h2>
+
+                    <div class="space-y-6">
+                        <div>
+                            <button id="startBtn" class="btn-primary w-full py-3 px-6 rounded-lg font-semibold flex items-center justify-center">
+                                <i class="fas fa-play mr-2"></i>
+                                开始音频捕获
+                            </button>
+                        </div>
+
+                        <div>
+                            <button id="stopBtn" class="btn-secondary w-full py-3 px-6 rounded-lg font-semibold flex items-center justify-center opacity-50 cursor-not-allowed" disabled>
+                                <i class="fas fa-stop mr-2"></i>
+                                停止捕获
+                            </button>
+                        </div>
+
+                        <!-- Threshold Control -->
+                        <div class="bg-white/10 rounded-lg p-4">
+                            <label class="block text-sm font-medium mb-3">录音阈值</label>
+                            <input type="range" id="thresholdSlider" class="threshold-slider w-full" min="0" max="50" value="10">
+                            <div class="flex justify-between text-xs mt-2">
+                                <span>0</span>
+                                <span id="thresholdValue">10</span>
+                                <span>50</span>
+                            </div>
+                        </div>
+                        <div class="bg-white/10 rounded-lg p-4">
+                            <h3 class="font-semibold mb-3 flex items-center">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                系统状态
+                            </h3>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span>音频状态:</span>
+                                    <span id="audioStatus" class="status-indicator">未连接</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>录音状态:</span>
+                                    <span id="recordingStatus">未录音</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>静音计时:</span>
+                                    <span id="silentTime">0s</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>音频强度:</span>
+                                    <span id="audioLevel">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Info Cards -->
+                <div class="mt-8 space-y-4">
+                    <div class="info-card p-4">
+                        <h3 class="font-semibold text-lg mb-2 flex items-center">
+                            <i class="fas fa-wave-square mr-2 text-blue-500"></i>
+                            波形分析
+                        </h3>
+                        <p class="text-gray-600 text-sm">
+                            实时分析音频信号的频率和振幅，生成动态波形图
+                        </p>
+                    </div>
+
+                    <div class="info-card p-4">
+                        <h3 class="font-semibold text-lg mb-2 flex items-center">
+                            <i class="fas fa-microphone mr-2 text-green-500"></i>
+                            智能录音
+                        </h3>
+                        <p class="text-gray-600 text-sm">
+                            根据音频阈值自动开始录音，静音4秒后自动停止
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="lg:col-span-2">
+                <div class="waveform-container bg-white rounded-xl p-6 shadow-2xl">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="title-font text-2xl font-semibold flex items-center">
+                            <i class="fas fa-chart-line mr-3 text-blue-500"></i>
+                            实时波形图
+                        </h2>
+                        <div id="recordingIndicator" class="hidden">
+                          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                            <span class="w-2 h-2 bg-red-500 rounded-full mr-2 recording-active"></span>
+                            录音中
+                          </span>
+                        </div>
+                    </div>
+
+                    <div class="relative">
+                        <canvas id="waveformCanvas" class="waveform-canvas w-full" width="800" height="300"></canvas>
+                        <div id="canvasPlaceholder" class="absolute inset-0 flex items-center justify-center bg-black rounded-lg">
+                            <div class="text-center text-gray-400">
+                                <i class="fas fa-microphone text-6xl mb-4 opacity-50"></i>
+                                <p class="text-lg">点击"开始音频捕获"以查看波形图</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8 grid md:grid-cols-2 gap-6">
+                    <div class="info-card p-6">
+                        <h3 class="title-font text-xl font-semibold mb-4 flex items-center">
+                            <i class="fas fa-cogs mr-2 text-purple-500"></i>
+                            技术参数
+                        </h3>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">缓冲区大小:</span>
+                                <span class="font-mono">2048</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">采样率:</span>
+                                <span class="font-mono">48kHz</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">FFT大小:</span>
+                                <span class="font-mono">2048</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">数据类型:</span>
+                                <span class="font-mono">Uint8Array</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="info-card p-6">
+                        <h3 class="title-font text-xl font-semibold mb-4 flex items-center">
+                            <i class="fas fa-lightbulb mr-2 text-yellow-500"></i>
+                            使用说明
+                        </h3>
+                        <ul class="space-y-2 text-sm text-gray-600">
+                            <li class="flex items-start">
+                                <i class="fas fa-check-circle text-green-500 mr-2 mt-0.5"></i>
+                                允许浏览器访问麦克风权限
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-check-circle text-green-500 mr-2 mt-0.5"></i>
+                                调整阈值控制录音灵敏度
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-check-circle text-green-500 mr-2 mt-0.5"></i>
+                                说话时波形图会实时变化
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-check-circle text-green-500 mr-2 mt-0.5"></i>
+                                静音4秒后自动停止录音
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        class 
+    </script>
+</body>
+</html>

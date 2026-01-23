@@ -1,0 +1,23 @@
+
+.tab-container.data-v-58a59a86 {
+  padding: 20rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30rpx;
+  margin-top: 100rpx;
+}
+.tab-title.data-v-58a59a86 {
+  font-size: 36rpx;
+  font-weight: bold;
+}
+.btn.data-v-58a59a86 {
+  width: 80%;
+  height: 80rpx;
+  line-height: 80rpx;
+  font-size: 28rpx;
+  background-color: #ff9500;
+  color: white;
+  border-radius: 40rpx;
+}
+

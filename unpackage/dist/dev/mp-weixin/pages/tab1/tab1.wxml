@@ -1,0 +1,1 @@
+<view class="tab-container data-v-58a59a86"><view class="tab-title data-v-58a59a86">tab 页面1 </view><button data-event-opts="{{[['tap',[['goToIndex',['$event']]]]]}}" class="btn data-v-58a59a86" bindtap="__e"> 返回首页 </button></view>
