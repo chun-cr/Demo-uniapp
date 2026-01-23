@@ -60,14 +60,13 @@
     <view class="debug-info" v-if="isDev">
       <text>文件路径: {{ filePath || '无' }}</text>
       <text>录音时长: {{ recordTime }}秒</text>
-      <text>音量: {{ currentVolume.toFixed(1) }}</text>
-      <text>波形点数: {{ waveformPoints.length }}</text>
     </view>
   </view>
 </template>
 
 <script>
 import { RecordManager } from '../../utils/record-manager.js'
+import CanvasWaveformManager from './canvas-record.js'
 
 export default {
   data() {
@@ -86,14 +85,12 @@ export default {
       canvasWidth: 0,          // Canvas宽度
       canvasHeight: 200,       // Canvas高度
       canvasContext: null,     // Canvas上下文
-      waveformPoints: [],      // 波形数据点
-      maxPoints: 200,          // 最大波形点数
+      waveformManager: null,   // 波形管理器
+      
+      // 音量相关
       currentVolume: 0,        // 当前音量
       
-      // 动画相关
-      animationFrame: null,    // 动画帧ID
-      lastDrawTime: 0,         // 上次绘制时间
-      drawInterval: 50          // 绘制间隔（ms），控制绘制频率
+      
     }
   },
 
@@ -114,31 +111,33 @@ export default {
   },
 
   onLoad() {
-    console.log('Canvas录音页面加载')
-    
-    // 初始化录音管理器
-    this.recordManager = new RecordManager('canvas_record')
-    this.recordManager.init()
-    
-    // 设置时间更新回调
-    this.recordManager.setTimeUpdateCallback((seconds, formatted) => {
-      if (this.isRecording || this.recordManager.isRecording) {
-        this.recordTime = seconds
-      }
-    })
+      console.log('Canvas录音页面加载')
+      
+      // 初始化录音管理器
+      this.recordManager = new RecordManager('canvas_record')
+      this.recordManager.init()
+      
+      // 设置时间更新回调
+      this.recordManager.setTimeUpdateCallback((seconds, formatted) => {
+        if (this.isRecording || this.recordManager.isRecording) {
+          this.recordTime = seconds
+        }
+      })
 
-    // 设置音量更新回调
-    this.recordManager.setVolumeUpdateCallback((volume) => {
-      this.currentVolume = volume
-      this.addWaveformPoint(volume)
-    })
+      // 设置音量更新回调
+      this.recordManager.setVolumeUpdateCallback((volume) => {
+        this.currentVolume = volume
+        if (this.waveformManager) {
+          this.waveformManager.updateVolume(volume)
+        }
+      })
 
-    // 初始化Canvas
-    this.initCanvas()
-    
-    // 初始化音频播放上下文
-    this.initInnerAudioContext()
-  },
+      // 初始化Canvas
+      this.initCanvas()
+      
+      // 初始化音频播放上下文
+      this.initInnerAudioContext()
+    },
 
   onUnload() {
     // 清理资源
@@ -149,11 +148,6 @@ export default {
     // 销毁音频上下文
     if (this.innerAudioContext) {
       this.innerAudioContext.destroy()
-    }
-    
-    // 停止动画
-    if (this.animationFrame) {
-      cancelAnimationFrame(this.animationFrame)
     }
   },
 
@@ -169,162 +163,19 @@ export default {
         // 获取Canvas上下文
         this.canvasContext = uni.createCanvasContext('waveformCanvas', this)
         
-        // 初始化波形数据
-        this.waveformPoints = []
+        // 初始化波形管理器
+        this.waveformManager = new CanvasWaveformManager(
+          this.canvasContext, 
+          this.canvasWidth, 
+          this.canvasHeight
+        )
         
         // 绘制初始背景
-        this.drawBackground()
+        this.waveformManager.drawBackground()
       })
     },
 
-    // 绘制背景
-    drawBackground() {
-      const ctx = this.canvasContext
-      if (!ctx) return
 
-      // 清空画布
-      ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight)
-      
-      // 绘制背景
-      ctx.setFillStyle('#f5f5f5')
-      ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight)
-      
-      // 绘制中心线
-      ctx.setStrokeStyle('#e0e0e0')
-      ctx.setLineWidth(1)
-      ctx.beginPath()
-      ctx.moveTo(0, this.canvasHeight / 2)
-      ctx.lineTo(this.canvasWidth, this.canvasHeight / 2)
-      ctx.stroke()
-      
-      ctx.draw()
-    },
-
-    // 添加波形点
-    addWaveformPoint(volume) {
-      // 将音量转换为波形高度（0-100 -> 0-canvasHeight/2）
-      const maxHeight = this.canvasHeight / 2
-      const height = (volume / 100) * maxHeight
-      
-      // 添加新点
-      this.waveformPoints.push({
-        volume: volume,
-        height: height,
-        timestamp: Date.now()
-      })
-      
-      // 限制点数，保持滚动效果
-      if (this.waveformPoints.length > this.maxPoints) {
-        this.waveformPoints.shift()
-      }
-      
-      // 使用节流控制绘制频率，避免过度绘制
-      const now = Date.now()
-      if (now - this.lastDrawTime >= this.drawInterval) {
-        this.drawWaveform()
-        this.lastDrawTime = now
-      }
-    },
-
-    // 绘制波形
-    drawWaveform() {
-      const ctx = this.canvasContext
-      if (!ctx || this.waveformPoints.length === 0) return
-
-      // 清空画布
-      ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight)
-      
-      // 绘制背景
-      ctx.setFillStyle('#f5f5f5')
-      ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight)
-      
-      // 绘制中心线
-      ctx.setStrokeStyle('#e0e0e0')
-      ctx.setLineWidth(1)
-      ctx.beginPath()
-      ctx.moveTo(0, this.canvasHeight / 2)
-      ctx.lineTo(this.canvasWidth, this.canvasHeight / 2)
-      ctx.stroke()
-      
-      // 计算每个点的X坐标间隔
-      const pointSpacing = this.canvasWidth / this.maxPoints
-      const centerY = this.canvasHeight / 2
-      
-      // 绘制上半部分波形（绿色）
-      ctx.setStrokeStyle('#07c160')
-      ctx.setLineWidth(2)
-      ctx.beginPath()
-      
-      for (let i = 0; i < this.waveformPoints.length; i++) {
-        const x = i * pointSpacing
-        const y = centerY - this.waveformPoints[i].height
-        
-        if (i === 0) {
-          ctx.moveTo(x, y)
-        } else {
-          ctx.lineTo(x, y)
-        }
-      }
-      ctx.stroke()
-      
-      // 绘制下半部分波形（对称）
-      ctx.beginPath()
-      for (let i = 0; i < this.waveformPoints.length; i++) {
-        const x = i * pointSpacing
-        const y = centerY + this.waveformPoints[i].height
-        
-        if (i === 0) {
-          ctx.moveTo(x, y)
-        } else {
-          ctx.lineTo(x, y)
-        }
-      }
-      ctx.stroke()
-      
-      // 填充波形区域（渐变效果）
-      if (this.waveformPoints.length > 1) {
-        // 上半部分填充
-        ctx.setFillStyle('rgba(7, 193, 96, 0.2)')
-        ctx.beginPath()
-        ctx.moveTo(0, centerY)
-        for (let i = 0; i < this.waveformPoints.length; i++) {
-          const x = i * pointSpacing
-          const y = centerY - this.waveformPoints[i].height
-          ctx.lineTo(x, y)
-        }
-        ctx.lineTo((this.waveformPoints.length - 1) * pointSpacing, centerY)
-        ctx.closePath()
-        ctx.fill()
-        
-        // 下半部分填充
-        ctx.beginPath()
-        ctx.moveTo(0, centerY)
-        for (let i = 0; i < this.waveformPoints.length; i++) {
-          const x = i * pointSpacing
-          const y = centerY + this.waveformPoints[i].height
-          ctx.lineTo(x, y)
-        }
-        ctx.lineTo((this.waveformPoints.length - 1) * pointSpacing, centerY)
-        ctx.closePath()
-        ctx.fill()
-      }
-      
-      // 绘制当前音量指示线
-      if (this.isRecording && this.waveformPoints.length > 0) {
-        const lastIndex = this.waveformPoints.length - 1
-        const x = lastIndex * pointSpacing
-        
-        ctx.setStrokeStyle('#ff4444')
-        ctx.setLineWidth(2)
-        ctx.beginPath()
-        ctx.moveTo(x, 0)
-        ctx.lineTo(x, this.canvasHeight)
-        ctx.stroke()
-      }
-      
-      // 提交绘制
-      ctx.draw()
-    },
 
     // 初始化音频播放上下文
     initInnerAudioContext() {
@@ -371,13 +222,14 @@ export default {
       try {
         // 重置状态
         this.recordTime = 0
-        this.waveformPoints = []
         this.currentVolume = 0
         this.hasRecord = false
         this.filePath = ''
         
-        // 绘制初始背景
-        this.drawBackground()
+        // 重置波形图
+        if (this.waveformManager) {
+          this.waveformManager.reset()
+        }
 
         await this.recordManager.startRecord()
         this.isRecording = true
@@ -405,6 +257,7 @@ export default {
       try {
         await this.recordManager.stopRecord()
         this.isRecording = false
+        
         this.hasRecord = true
         this.filePath = this.recordManager.getRecordFile()
 
@@ -435,7 +288,6 @@ export default {
             this.isPlaying = false
             this.recordTime = 0
             this.filePath = ''
-            this.waveformPoints = []
             this.currentVolume = 0
             
             // 重置录音管理器
@@ -443,7 +295,9 @@ export default {
             this.recordManager.recordTime = 0
             
             // 重新绘制背景
-            this.drawBackground()
+            if (this.waveformManager) {
+              this.waveformManager.reset()
+            }
           }
         }
       })

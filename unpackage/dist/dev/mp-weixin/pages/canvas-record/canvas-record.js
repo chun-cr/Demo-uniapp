@@ -115,17 +115,6 @@ var render = function () {
   var _vm = this
   var _h = _vm.$createElement
   var _c = _vm._self._c || _h
-  var g0 = _vm.isDev ? _vm.currentVolume.toFixed(1) : null
-  var g1 = _vm.isDev ? _vm.waveformPoints.length : null
-  _vm.$mp.data = Object.assign(
-    {},
-    {
-      $root: {
-        g0: g0,
-        g1: g1,
-      },
-    }
-  )
 }
 var recyclableRender = false
 var staticRenderFns = []
@@ -169,8 +158,7 @@ exports.default = void 0;
 var _regenerator = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/regenerator */ 71));
 var _asyncToGenerator2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/asyncToGenerator */ 73));
 var _recordManager = __webpack_require__(/*! ../../utils/record-manager.js */ 116);
-//
-//
+var _canvasRecord = _interopRequireDefault(__webpack_require__(/*! ./canvas-record.js */ 137));
 //
 //
 //
@@ -266,19 +254,11 @@ var _default = {
       // Canvas高度
       canvasContext: null,
       // Canvas上下文
-      waveformPoints: [],
-      // 波形数据点
-      maxPoints: 200,
-      // 最大波形点数
-      currentVolume: 0,
-      // 当前音量
+      waveformManager: null,
+      // 波形管理器
 
-      // 动画相关
-      animationFrame: null,
-      // 动画帧ID
-      lastDrawTime: 0,
-      // 上次绘制时间
-      drawInterval: 50 // 绘制间隔（ms），控制绘制频率
+      // 音量相关
+      currentVolume: 0 // 当前音量
     };
   },
 
@@ -314,7 +294,9 @@ var _default = {
     // 设置音量更新回调
     this.recordManager.setVolumeUpdateCallback(function (volume) {
       _this.currentVolume = volume;
-      _this.addWaveformPoint(volume);
+      if (_this.waveformManager) {
+        _this.waveformManager.updateVolume(volume);
+      }
     });
 
     // 初始化Canvas
@@ -333,11 +315,6 @@ var _default = {
     if (this.innerAudioContext) {
       this.innerAudioContext.destroy();
     }
-
-    // 停止动画
-    if (this.animationFrame) {
-      cancelAnimationFrame(this.animationFrame);
-    }
   },
   methods: {
     // 初始化Canvas
@@ -352,153 +329,12 @@ var _default = {
         // 获取Canvas上下文
         _this2.canvasContext = uni.createCanvasContext('waveformCanvas', _this2);
 
-        // 初始化波形数据
-        _this2.waveformPoints = [];
+        // 初始化波形管理器
+        _this2.waveformManager = new _canvasRecord.default(_this2.canvasContext, _this2.canvasWidth, _this2.canvasHeight);
 
         // 绘制初始背景
-        _this2.drawBackground();
+        _this2.waveformManager.drawBackground();
       });
-    },
-    // 绘制背景
-    drawBackground: function drawBackground() {
-      var ctx = this.canvasContext;
-      if (!ctx) return;
-
-      // 清空画布
-      ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
-
-      // 绘制背景
-      ctx.setFillStyle('#f5f5f5');
-      ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
-
-      // 绘制中心线
-      ctx.setStrokeStyle('#e0e0e0');
-      ctx.setLineWidth(1);
-      ctx.beginPath();
-      ctx.moveTo(0, this.canvasHeight / 2);
-      ctx.lineTo(this.canvasWidth, this.canvasHeight / 2);
-      ctx.stroke();
-      ctx.draw();
-    },
-    // 添加波形点
-    addWaveformPoint: function addWaveformPoint(volume) {
-      // 将音量转换为波形高度（0-100 -> 0-canvasHeight/2）
-      var maxHeight = this.canvasHeight / 2;
-      var height = volume / 100 * maxHeight;
-
-      // 添加新点
-      this.waveformPoints.push({
-        volume: volume,
-        height: height,
-        timestamp: Date.now()
-      });
-
-      // 限制点数，保持滚动效果
-      if (this.waveformPoints.length > this.maxPoints) {
-        this.waveformPoints.shift();
-      }
-
-      // 使用节流控制绘制频率，避免过度绘制
-      var now = Date.now();
-      if (now - this.lastDrawTime >= this.drawInterval) {
-        this.drawWaveform();
-        this.lastDrawTime = now;
-      }
-    },
-    // 绘制波形
-    drawWaveform: function drawWaveform() {
-      var ctx = this.canvasContext;
-      if (!ctx || this.waveformPoints.length === 0) return;
-
-      // 清空画布
-      ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
-
-      // 绘制背景
-      ctx.setFillStyle('#f5f5f5');
-      ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
-
-      // 绘制中心线
-      ctx.setStrokeStyle('#e0e0e0');
-      ctx.setLineWidth(1);
-      ctx.beginPath();
-      ctx.moveTo(0, this.canvasHeight / 2);
-      ctx.lineTo(this.canvasWidth, this.canvasHeight / 2);
-      ctx.stroke();
-
-      // 计算每个点的X坐标间隔
-      var pointSpacing = this.canvasWidth / this.maxPoints;
-      var centerY = this.canvasHeight / 2;
-
-      // 绘制上半部分波形（绿色）
-      ctx.setStrokeStyle('#07c160');
-      ctx.setLineWidth(2);
-      ctx.beginPath();
-      for (var i = 0; i < this.waveformPoints.length; i++) {
-        var x = i * pointSpacing;
-        var y = centerY - this.waveformPoints[i].height;
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      }
-      ctx.stroke();
-
-      // 绘制下半部分波形（对称）
-      ctx.beginPath();
-      for (var _i = 0; _i < this.waveformPoints.length; _i++) {
-        var _x = _i * pointSpacing;
-        var _y = centerY + this.waveformPoints[_i].height;
-        if (_i === 0) {
-          ctx.moveTo(_x, _y);
-        } else {
-          ctx.lineTo(_x, _y);
-        }
-      }
-      ctx.stroke();
-
-      // 填充波形区域（渐变效果）
-      if (this.waveformPoints.length > 1) {
-        // 上半部分填充
-        ctx.setFillStyle('rgba(7, 193, 96, 0.2)');
-        ctx.beginPath();
-        ctx.moveTo(0, centerY);
-        for (var _i2 = 0; _i2 < this.waveformPoints.length; _i2++) {
-          var _x2 = _i2 * pointSpacing;
-          var _y2 = centerY - this.waveformPoints[_i2].height;
-          ctx.lineTo(_x2, _y2);
-        }
-        ctx.lineTo((this.waveformPoints.length - 1) * pointSpacing, centerY);
-        ctx.closePath();
-        ctx.fill();
-
-        // 下半部分填充
-        ctx.beginPath();
-        ctx.moveTo(0, centerY);
-        for (var _i3 = 0; _i3 < this.waveformPoints.length; _i3++) {
-          var _x3 = _i3 * pointSpacing;
-          var _y3 = centerY + this.waveformPoints[_i3].height;
-          ctx.lineTo(_x3, _y3);
-        }
-        ctx.lineTo((this.waveformPoints.length - 1) * pointSpacing, centerY);
-        ctx.closePath();
-        ctx.fill();
-      }
-
-      // 绘制当前音量指示线
-      if (this.isRecording && this.waveformPoints.length > 0) {
-        var lastIndex = this.waveformPoints.length - 1;
-        var _x4 = lastIndex * pointSpacing;
-        ctx.setStrokeStyle('#ff4444');
-        ctx.setLineWidth(2);
-        ctx.beginPath();
-        ctx.moveTo(_x4, 0);
-        ctx.lineTo(_x4, this.canvasHeight);
-        ctx.stroke();
-      }
-
-      // 提交绘制
-      ctx.draw();
     },
     // 初始化音频播放上下文
     initInnerAudioContext: function initInnerAudioContext() {
@@ -545,42 +381,43 @@ var _default = {
                 _context.prev = 2;
                 // 重置状态
                 _this4.recordTime = 0;
-                _this4.waveformPoints = [];
                 _this4.currentVolume = 0;
                 _this4.hasRecord = false;
                 _this4.filePath = '';
 
-                // 绘制初始背景
-                _this4.drawBackground();
-                _context.next = 11;
+                // 重置波形图
+                if (_this4.waveformManager) {
+                  _this4.waveformManager.reset();
+                }
+                _context.next = 10;
                 return _this4.recordManager.startRecord();
-              case 11:
+              case 10:
                 _this4.isRecording = true;
                 uni.showToast({
                   title: '开始录音',
                   icon: 'none',
                   duration: 1500
                 });
-                _context.next = 19;
+                _context.next = 18;
                 break;
-              case 15:
-                _context.prev = 15;
+              case 14:
+                _context.prev = 14;
                 _context.t0 = _context["catch"](2);
                 console.error('开始录音失败:', _context.t0);
                 uni.showToast({
                   title: '开始录音失败',
                   icon: 'none'
                 });
-              case 19:
-                _context.prev = 19;
+              case 18:
+                _context.prev = 18;
                 _this4.isStarting = false;
-                return _context.finish(19);
-              case 22:
+                return _context.finish(18);
+              case 21:
               case "end":
                 return _context.stop();
             }
           }
-        }, _callee, null, [[2, 15, 19, 22]]);
+        }, _callee, null, [[2, 14, 18, 21]]);
       }))();
     },
     // 停止录音
@@ -635,7 +472,6 @@ var _default = {
             _this6.isPlaying = false;
             _this6.recordTime = 0;
             _this6.filePath = '';
-            _this6.waveformPoints = [];
             _this6.currentVolume = 0;
 
             // 重置录音管理器
@@ -643,7 +479,9 @@ var _default = {
             _this6.recordManager.recordTime = 0;
 
             // 重新绘制背景
-            _this6.drawBackground();
+            if (_this6.waveformManager) {
+              _this6.waveformManager.reset();
+            }
           }
         }
       });

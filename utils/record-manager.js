@@ -11,9 +11,19 @@ class RecordManager {
         this.recordTime = 0
         this.timer = null
         this.onTimeUpdate = null
+        this.onVolumeUpdate = null
         this.stopResolve = null
         this.instanceId = Date.now() + Math.random()
         this.stopTimeout = null
+        this.recorder = uni.getRecorderManager()
+
+        // 监听音量变化
+        this.recorder.onFrameRecorded((res) => {
+            const volume = res.volume;  // 获取音量值
+            if (this.onVolumeUpdate) {
+                this.onVolumeUpdate(volume);  // 触发音量更新
+            }
+        });
 
         // 注册实例
         RecordManager.instances.set(this.instanceId, this)
@@ -56,7 +66,13 @@ class RecordManager {
                 })
             })
             
-
+            // 监听音频帧数据（用于计算音量）
+            RecordManager.recorderManager.onFrameRecorded((res) => {
+                // 通知所有活跃实例
+                RecordManager.instances.forEach(instance => {
+                    instance.handleFrameRecordedEvent(res)
+                })
+            })
             
             RecordManager.isInitialized = true
         }
@@ -127,6 +143,43 @@ class RecordManager {
         this.onTimeUpdate = callback
     }
 
+    // 设置音量更新回调
+    setVolumeUpdateCallback(callback) {
+        this.onVolumeUpdate = callback
+    }
+
+    // 处理音频帧事件
+    handleFrameRecordedEvent(res) {
+        // 只有当前实例处于录音状态时才处理
+        if (this.isRecording) {
+            // 计算音量
+            const volume = this.calculateVolume(res.frameBuffer)
+            
+            // 触发音量更新回调
+            if (this.onVolumeUpdate) {
+                this.onVolumeUpdate(volume)
+            }
+        }
+    }
+
+    // 计算音量
+    calculateVolume(frameData) {
+        if (!frameData || frameData.length === 0) {
+            return 0
+        }
+
+        // 计算音量（简单实现：取绝对值的平均值，转换为0-100范围）
+        let sum = 0
+        for (let i = 0; i < frameData.length; i++) {
+            sum += Math.abs(frameData[i])
+        }
+        
+        const avg = sum / frameData.length
+        // 假设最大可能值为32768（16位PCM）
+        const volume = Math.min(Math.max(Math.round((avg / 32768) * 100), 0), 100)
+        
+        return volume
+    }
 
     // 开始录音
     startRecord() {

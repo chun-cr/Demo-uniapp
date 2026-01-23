@@ -312,11 +312,12 @@ export default {
           title: '开始上传录音',
           mask: true
         })
+        const SERVER_URL = 'https://4c212857c50add03-122-224-247-54.serveousercontent.com'
         //使用uni.uploadFile API
         const uploadTask = uni.uploadFile({
-          url: 'http://localhost:3000/api/upload',
+          url: `${SERVER_URL}/api/upload`,
           filePath: this.filePath,
-          name: 'record-backend',
+          name: 'audio',
           formData: {
             userId: 'test_user_001',
             timestamp: Date.now(),

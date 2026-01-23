@@ -114,6 +114,7 @@ var _defineProperty2 = _interopRequireDefault(__webpack_require__(/*! @babel/run
 // 录音管理器，支持多实例
 var RecordManager = /*#__PURE__*/function () {
   function RecordManager() {
+    var _this = this;
     var id = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 'default';
     (0, _classCallCheck2.default)(this, RecordManager);
     this.id = id;
@@ -122,9 +123,19 @@ var RecordManager = /*#__PURE__*/function () {
     this.recordTime = 0;
     this.timer = null;
     this.onTimeUpdate = null;
+    this.onVolumeUpdate = null;
     this.stopResolve = null;
     this.instanceId = Date.now() + Math.random();
     this.stopTimeout = null;
+    this.recorder = uni.getRecorderManager();
+
+    // 监听音量变化
+    this.recorder.onFrameRecorded(function (res) {
+      var volume = res.volume; // 获取音量值
+      if (_this.onVolumeUpdate) {
+        _this.onVolumeUpdate(volume); // 触发音量更新
+      }
+    });
 
     // 注册实例
     RecordManager.instances.set(this.instanceId, this);
@@ -210,14 +221,56 @@ var RecordManager = /*#__PURE__*/function () {
       this.onTimeUpdate = callback;
     }
 
+    // 设置音量更新回调
+  }, {
+    key: "setVolumeUpdateCallback",
+    value: function setVolumeUpdateCallback(callback) {
+      this.onVolumeUpdate = callback;
+    }
+
+    // 处理音频帧事件
+  }, {
+    key: "handleFrameRecordedEvent",
+    value: function handleFrameRecordedEvent(res) {
+      // 只有当前实例处于录音状态时才处理
+      if (this.isRecording) {
+        // 计算音量
+        var volume = this.calculateVolume(res.frameBuffer);
+
+        // 触发音量更新回调
+        if (this.onVolumeUpdate) {
+          this.onVolumeUpdate(volume);
+        }
+      }
+    }
+
+    // 计算音量
+  }, {
+    key: "calculateVolume",
+    value: function calculateVolume(frameData) {
+      if (!frameData || frameData.length === 0) {
+        return 0;
+      }
+
+      // 计算音量（简单实现：取绝对值的平均值，转换为0-100范围）
+      var sum = 0;
+      for (var i = 0; i < frameData.length; i++) {
+        sum += Math.abs(frameData[i]);
+      }
+      var avg = sum / frameData.length;
+      // 假设最大可能值为32768（16位PCM）
+      var volume = Math.min(Math.max(Math.round(avg / 32768 * 100), 0), 100);
+      return volume;
+    }
+
     // 开始录音
   }, {
     key: "startRecord",
     value: function startRecord() {
-      var _this = this;
+      var _this2 = this;
       return new Promise(function (resolve, reject) {
-        if (!_this.recorderManager) {
-          _this.init();
+        if (!_this2.recorderManager) {
+          _this2.init();
         }
 
         // 检查权限
@@ -228,7 +281,7 @@ var RecordManager = /*#__PURE__*/function () {
               uni.authorize({
                 scope: 'scope.record',
                 success: function success() {
-                  _this._doStartRecord();
+                  _this2._doStartRecord();
                   resolve();
                 },
                 fail: function fail() {
@@ -246,7 +299,7 @@ var RecordManager = /*#__PURE__*/function () {
               });
             } else {
               // 已有权限
-              _this._doStartRecord();
+              _this2._doStartRecord();
               resolve();
             }
           },
@@ -286,37 +339,37 @@ var RecordManager = /*#__PURE__*/function () {
   }, {
     key: "stopRecord",
     value: function stopRecord() {
-      var _this2 = this;
+      var _this3 = this;
       return new Promise(function (resolve) {
-        console.log("".concat(_this2.id, " \u5F00\u59CB\u505C\u6B62\u5F55\u97F3\uFF0C\u5F53\u524DisRecording: ").concat(_this2.isRecording));
-        if (_this2.recorderManager && _this2.isRecording) {
+        console.log("".concat(_this3.id, " \u5F00\u59CB\u505C\u6B62\u5F55\u97F3\uFF0C\u5F53\u524DisRecording: ").concat(_this3.isRecording));
+        if (_this3.recorderManager && _this3.isRecording) {
           // 保存resolve函数
-          _this2.stopResolve = resolve;
+          _this3.stopResolve = resolve;
 
           // 调用录音管理器的stop方法
-          _this2.recorderManager.stop();
+          _this3.recorderManager.stop();
 
           // 添加超时处理，防止onStop回调不触发导致Promise永远pending
-          _this2.stopTimeout = setTimeout(function () {
-            console.warn("".concat(_this2.id, " \u5F55\u97F3\u505C\u6B62\u8D85\u65F6\uFF0C\u5F3A\u5236resolve"));
+          _this3.stopTimeout = setTimeout(function () {
+            console.warn("".concat(_this3.id, " \u5F55\u97F3\u505C\u6B62\u8D85\u65F6\uFF0C\u5F3A\u5236resolve"));
 
             // 更新状态
-            _this2.isRecording = false;
-            _this2.stopTimer();
+            _this3.isRecording = false;
+            _this3.stopTimer();
 
             // 调用resolve
-            if (_this2.stopResolve) {
-              _this2.stopResolve();
-              _this2.stopResolve = null;
+            if (_this3.stopResolve) {
+              _this3.stopResolve();
+              _this3.stopResolve = null;
             }
 
             // 清除超时计时器
-            _this2.stopTimeout = null;
+            _this3.stopTimeout = null;
           }, 3000); // 3秒超时
 
-          console.log("".concat(_this2.id, " \u5DF2\u8C03\u7528recorderManager.stop()"));
+          console.log("".concat(_this3.id, " \u5DF2\u8C03\u7528recorderManager.stop()"));
         } else {
-          console.log("".concat(_this2.id, " \u672A\u5904\u4E8E\u5F55\u97F3\u72B6\u6001\uFF0C\u76F4\u63A5resolve"));
+          console.log("".concat(_this3.id, " \u672A\u5904\u4E8E\u5F55\u97F3\u72B6\u6001\uFF0C\u76F4\u63A5resolve"));
           resolve();
         }
       });
@@ -326,14 +379,14 @@ var RecordManager = /*#__PURE__*/function () {
   }, {
     key: "startTimer",
     value: function startTimer() {
-      var _this3 = this;
+      var _this4 = this;
       // 先清除之前可能存在的计时器，防止多个计时器同时运行
       this.stopTimer();
       this.recordTime = 0;
       this.timer = setInterval(function () {
-        _this3.recordTime++; // 只是更新了类的属性
-        if (_this3.onTimeUpdate) {
-          _this3.onTimeUpdate(_this3.recordTime, _this3.getFormattedTime());
+        _this4.recordTime++; // 只是更新了类的属性
+        if (_this4.onTimeUpdate) {
+          _this4.onTimeUpdate(_this4.recordTime, _this4.getFormattedTime());
         }
       }, 1000);
     }
@@ -415,6 +468,14 @@ var RecordManager = /*#__PURE__*/function () {
             instance.handleErrorEvent(err);
           });
         });
+
+        // 监听音频帧数据（用于计算音量）
+        RecordManager.recorderManager.onFrameRecorded(function (res) {
+          // 通知所有活跃实例
+          RecordManager.instances.forEach(function (instance) {
+            instance.handleFrameRecordedEvent(res);
+          });
+        });
         RecordManager.isInitialized = true;
       }
     }
@@ -466,6 +527,212 @@ function _typeof(o) {
   }, module.exports.__esModule = true, module.exports["default"] = module.exports), _typeof(o);
 }
 module.exports = _typeof, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+/***/ }),
+
+/***/ 137:
+/*!********************************************************************************!*\
+  !*** D:/documents/HBuilderProject1/demo2/pages/canvas-record/canvas-record.js ***!
+  \********************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+var _classCallCheck = __webpack_require__(/*! @babel/runtime/helpers/classCallCheck */ 23);
+var _createClass = __webpack_require__(/*! @babel/runtime/helpers/createClass */ 24);
+// Canvas录音波形图管理器
+var CanvasWaveformManager = /*#__PURE__*/function () {
+  "use strict";
+
+  function CanvasWaveformManager(canvasContext, canvasWidth, canvasHeight) {
+    _classCallCheck(this, CanvasWaveformManager);
+    this.canvasContext = canvasContext;
+    this.canvasWidth = canvasWidth;
+    this.canvasHeight = canvasHeight;
+    this.waveformPoints = [];
+    this.maxPoints = 200; // 最大波形点数
+    this.lastDrawTime = 0;
+    this.drawInterval = 50; // 绘制间隔（ms）
+    this.currentVolume = 0;
+  }
+
+  // 更新音量
+  _createClass(CanvasWaveformManager, [{
+    key: "updateVolume",
+    value: function updateVolume(volume) {
+      this.currentVolume = volume;
+      this.addWaveformPoint(volume);
+    }
+
+    // 添加波形点
+  }, {
+    key: "addWaveformPoint",
+    value: function addWaveformPoint(volume) {
+      // 将音量转换为波形高度（0-100 -> 0-canvasHeight/2）
+      var maxHeight = this.canvasHeight / 2;
+      var height = volume / 100 * maxHeight;
+
+      // 添加新点
+      this.waveformPoints.push({
+        volume: volume,
+        height: height,
+        timestamp: Date.now()
+      });
+
+      // 限制点数，保持滚动效果
+      if (this.waveformPoints.length > this.maxPoints) {
+        this.waveformPoints.shift();
+      }
+
+      // 使用节流控制绘制频率，避免过度绘制
+      var now = Date.now();
+      if (now - this.lastDrawTime >= this.drawInterval) {
+        this.drawWaveform();
+        this.lastDrawTime = now;
+      }
+    }
+
+    // 绘制波形
+  }, {
+    key: "drawWaveform",
+    value: function drawWaveform() {
+      var ctx = this.canvasContext;
+      if (!ctx || this.waveformPoints.length === 0) return;
+
+      // 清空画布
+      ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+
+      // 绘制背景
+      ctx.setFillStyle('#f5f5f5');
+      ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
+
+      // 绘制中心线
+      ctx.setStrokeStyle('#e0e0e0');
+      ctx.setLineWidth(1);
+      ctx.beginPath();
+      ctx.moveTo(0, this.canvasHeight / 2);
+      ctx.lineTo(this.canvasWidth, this.canvasHeight / 2);
+      ctx.stroke();
+
+      // 计算每个点的X坐标间隔
+      var pointSpacing = this.canvasWidth / this.maxPoints;
+      var centerY = this.canvasHeight / 2;
+
+      // 绘制上半部分波形（绿色）
+      ctx.setStrokeStyle('#07c160');
+      ctx.setLineWidth(2);
+      ctx.beginPath();
+      for (var i = 0; i < this.waveformPoints.length; i++) {
+        var x = i * pointSpacing;
+        var y = centerY - this.waveformPoints[i].height;
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+
+      // 绘制下半部分波形（对称）
+      ctx.beginPath();
+      for (var _i = 0; _i < this.waveformPoints.length; _i++) {
+        var _x = _i * pointSpacing;
+        var _y = centerY + this.waveformPoints[_i].height;
+        if (_i === 0) {
+          ctx.moveTo(_x, _y);
+        } else {
+          ctx.lineTo(_x, _y);
+        }
+      }
+      ctx.stroke();
+
+      // 填充波形区域（渐变效果）
+      if (this.waveformPoints.length > 1) {
+        // 上半部分填充
+        ctx.setFillStyle('rgba(7, 193, 96, 0.2)');
+        ctx.beginPath();
+        ctx.moveTo(0, centerY);
+        for (var _i2 = 0; _i2 < this.waveformPoints.length; _i2++) {
+          var _x2 = _i2 * pointSpacing;
+          var _y2 = centerY - this.waveformPoints[_i2].height;
+          ctx.lineTo(_x2, _y2);
+        }
+        ctx.lineTo((this.waveformPoints.length - 1) * pointSpacing, centerY);
+        ctx.closePath();
+        ctx.fill();
+
+        // 下半部分填充
+        ctx.beginPath();
+        ctx.moveTo(0, centerY);
+        for (var _i3 = 0; _i3 < this.waveformPoints.length; _i3++) {
+          var _x3 = _i3 * pointSpacing;
+          var _y3 = centerY + this.waveformPoints[_i3].height;
+          ctx.lineTo(_x3, _y3);
+        }
+        ctx.lineTo((this.waveformPoints.length - 1) * pointSpacing, centerY);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // 绘制当前音量指示线
+      if (this.waveformPoints.length > 0) {
+        var lastIndex = this.waveformPoints.length - 1;
+        var _x4 = lastIndex * pointSpacing;
+        ctx.setStrokeStyle('#ff4444');
+        ctx.setLineWidth(2);
+        ctx.beginPath();
+        ctx.moveTo(_x4, 0);
+        ctx.lineTo(_x4, this.canvasHeight);
+        ctx.stroke();
+      }
+
+      // 提交绘制
+      ctx.draw();
+    }
+
+    // 绘制初始背景
+  }, {
+    key: "drawBackground",
+    value: function drawBackground() {
+      var ctx = this.canvasContext;
+      if (!ctx) return;
+
+      // 清空画布
+      ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+
+      // 绘制背景
+      ctx.setFillStyle('#f5f5f5');
+      ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
+
+      // 绘制中心线
+      ctx.setStrokeStyle('#e0e0e0');
+      ctx.setLineWidth(1);
+      ctx.beginPath();
+      ctx.moveTo(0, this.canvasHeight / 2);
+      ctx.lineTo(this.canvasWidth, this.canvasHeight / 2);
+      ctx.stroke();
+      ctx.draw();
+    }
+
+    // 重置波形
+  }, {
+    key: "reset",
+    value: function reset() {
+      this.waveformPoints = [];
+      this.currentVolume = 0;
+      this.drawBackground();
+    }
+
+    // 更新Canvas尺寸
+  }, {
+    key: "updateCanvasSize",
+    value: function updateCanvasSize(width, height) {
+      this.canvasWidth = width;
+      this.canvasHeight = height;
+    }
+  }]);
+  return CanvasWaveformManager;
+}(); // 导出
+module.exports = CanvasWaveformManager;
 
 /***/ }),
 

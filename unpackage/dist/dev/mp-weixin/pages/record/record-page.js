@@ -467,7 +467,7 @@ var _default = {
     handleUpload: function handleUpload() {
       var _this6 = this;
       return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee3() {
-        var uploadTask;
+        var SERVER_URL, uploadTask;
         return _regenerator.default.wrap(function _callee3$(_context3) {
           while (1) {
             switch (_context3.prev = _context3.next) {
@@ -489,11 +489,11 @@ var _default = {
                     title: '开始上传录音',
                     mask: true
                   });
-                  //使用uni.uploadFile API
+                  SERVER_URL = 'https://4c212857c50add03-122-224-247-54.serveousercontent.com'; //使用uni.uploadFile API
                   uploadTask = uni.uploadFile({
-                    url: 'http://localhost:3000/api/upload',
+                    url: "".concat(SERVER_URL, "/api/upload"),
                     filePath: _this6.filePath,
-                    name: 'record-backend',
+                    name: 'audio',
                     formData: {
                       userId: 'test_user_001',
                       timestamp: Date.now(),
