@@ -176,26 +176,27 @@ class RecordManager {
         let sumSquared = 0;
         let count = 0;
 
-        // 对 MP3 编码数据，我们直接统计字节的偏移程度作为活跃度参考
-        for (let i = 0; i < frameData.length; i += 2) {
-            // 将字节映射到 -128 到 127
-            const sample = frameData[i] - 128;
-            sumSquared += sample * sample;
+        // 由于可能是MP3编码后的数据，直接按16位采样读取会有误差，但可以作为能量参考
+        // 我们改为步进读取，提高性能并取样能量
+        for (let i = 0; i < frameData.length; i += 4) {
+            // 组合为16位有符号整数
+            const sample = (frameData[i + 1] << 8) | frameData[i];
+            const signedSample = sample > 32767 ? sample - 65536 : sample;
+            sumSquared += signedSample * signedSample;
             count++;
         }
 
         const rms = Math.sqrt(sumSquared / count);
         
-        // 针对 MP3 编码帧的特殊映射：
-        // 1. 经过测试，MP3 帧在静音时的字节能量 rms 通常在 40-60 之间
-        // 2. 我们将门限设为 65，低于此值直接归零
-        // 3. 使用更强的二次方曲线
+        // 核心改进：
+        // 1. 提高除数（基准值），通常编码数据的能量值比PCM大
+        // 2. 使用指数函数 (Math.pow) 增加低音量时的衰减速度，消除底噪感
+        // 3. 5000是一个实验性的底噪阈值，低于这个能量会被迅速压缩
         let volume = 0;
-        if (rms > 65) {
-            // 映射范围：(rms - 门限) / (最大预期能量 - 门限)
-            // 这里取 100 为最大预期能量
-            const normalized = Math.min((rms - 65) / 35, 1);
-            volume = Math.round(Math.pow(normalized, 2) * 100);
+        if (rms > 1000) {
+            // 将 rms 映射到 0-100，并使用平方增强对比度
+            // 这样低音量（底噪）会变成很小的数，大音量则保持
+            volume = Math.round(Math.pow((rms / 30000), 1.5) * 100);
         }
 
         return Math.min(Math.max(volume, 0), 100);

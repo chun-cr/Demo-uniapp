@@ -174,32 +174,35 @@ class RecordManager {
         if (!frameData || frameData.length === 0) return 0;
 
         let sumSquared = 0;
-        let count = 0;
+        const sampleCount = frameData.length / 2;
 
-        // 对 MP3 编码数据，我们直接统计字节的偏移程度作为活跃度参考
         for (let i = 0; i < frameData.length; i += 2) {
-            // 将字节映射到 -128 到 127
-            const sample = frameData[i] - 128;
-            sumSquared += sample * sample;
-            count++;
+            const sample = (frameData[i + 1] << 8) | frameData[i];
+            const signedSample = sample > 32767 ? sample - 65536 : sample;
+            sumSquared += signedSample * signedSample;
         }
 
-        const rms = Math.sqrt(sumSquared / count);
+        const rms = Math.sqrt(sumSquared / sampleCount);
         
-        // 针对 MP3 编码帧的特殊映射：
-        // 1. 经过测试，MP3 帧在静音时的字节能量 rms 通常在 40-60 之间
-        // 2. 我们将门限设为 65，低于此值直接归零
-        // 3. 使用更强的二次方曲线
-        let volume = 0;
-        if (rms > 65) {
-            // 映射范围：(rms - 门限) / (最大预期能量 - 门限)
-            // 这里取 100 为最大预期能量
-            const normalized = Math.min((rms - 65) / 35, 1);
-            volume = Math.round(Math.pow(normalized, 2) * 100);
-        }
-
-        return Math.min(Math.max(volume, 0), 100);
+        // 添加静音阈值和压缩
+        const threshold = 500; // 调整这个值：越小越灵敏
+        if (rms < threshold) return 0; // 低于阈值认为是静音
+        
+        // 对数压缩（更符合人耳感知）
+        const normalized = rms / 32768;
+        const db = 20 * Math.log10(normalized); // 转换为分贝
+        
+        // 将分贝映射到0-100范围（例如-60dB到0dB）
+        const minDb = -60;
+        const maxDb = 0;
+        const volume = Math.min(Math.max(
+            Math.round(((db - minDb) / (maxDb - minDb)) * 100),
+            0
+        ), 100);
+        
+        return volume;
     }
+
 
     // 开始录音
     startRecord() {

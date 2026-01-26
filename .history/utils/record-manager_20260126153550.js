@@ -170,36 +170,8 @@ class RecordManager {
     }
 
     // 计算音量
-    calculateVolume(frameData) {
-        if (!frameData || frameData.length === 0) return 0;
+    
 
-        let sumSquared = 0;
-        let count = 0;
-
-        // 对 MP3 编码数据，我们直接统计字节的偏移程度作为活跃度参考
-        for (let i = 0; i < frameData.length; i += 2) {
-            // 将字节映射到 -128 到 127
-            const sample = frameData[i] - 128;
-            sumSquared += sample * sample;
-            count++;
-        }
-
-        const rms = Math.sqrt(sumSquared / count);
-        
-        // 针对 MP3 编码帧的特殊映射：
-        // 1. 经过测试，MP3 帧在静音时的字节能量 rms 通常在 40-60 之间
-        // 2. 我们将门限设为 65，低于此值直接归零
-        // 3. 使用更强的二次方曲线
-        let volume = 0;
-        if (rms > 65) {
-            // 映射范围：(rms - 门限) / (最大预期能量 - 门限)
-            // 这里取 100 为最大预期能量
-            const normalized = Math.min((rms - 65) / 35, 1);
-            volume = Math.round(Math.pow(normalized, 2) * 100);
-        }
-
-        return Math.min(Math.max(volume, 0), 100);
-    }
 
     // 开始录音
     startRecord() {

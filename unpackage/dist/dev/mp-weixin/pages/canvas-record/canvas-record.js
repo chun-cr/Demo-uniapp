@@ -225,6 +225,14 @@ var _canvasRecord = _interopRequireDefault(__webpack_require__(/*! ./canvas-reco
 //
 //
 //
+//
+//
+//
+//
+//
+//
+//
+//
 var _default = {
   data: function data() {
     return {

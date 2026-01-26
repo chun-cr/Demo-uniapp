@@ -1,10 +1,18 @@
 <template>
   <view class="canvas-record-page">
     <!-- 状态显示 -->
-    <view class="status-section">
-      <text class="status-text">{{ statusText }}</text>
-      <text class="time-text" v-if="isRecording || hasRecord">{{ formattedTime }}</text>
+  <view class="status-section">
+    <text class="status-text">{{ statusText }}</text>
+    <text class="time-text" v-if="isRecording || hasRecord">{{ formattedTime }}</text>
+    <!-- 实时音量显示 -->
+    <view class="volume-section" v-if="isRecording">
+      <text class="volume-label">音量：</text>
+      <text class="volume-value">{{ currentVolume }}%</text>
+      <view class="volume-bar-container">
+        <view class="volume-bar" :style="{ width: currentVolume + '%' }"></view>
+      </view>
     </view>
+  </view>
 
     <!-- Canvas波形图 -->
     <view class="canvas-container">
@@ -360,6 +368,59 @@ export default {
   color: #1989fa;
   font-weight: 700;
   display: block;
+  margin-bottom: 20rpx;
+}
+
+/* 音量显示区域 */
+.volume-section {
+  margin-top: 20rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.volume-label {
+  font-size: 28rpx;
+  color: #666;
+  margin-right: 10rpx;
+}
+
+.volume-value {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #07c160;
+  margin-bottom: 10rpx;
+}
+
+.volume-bar-container {
+  width: 80%;
+  height: 16rpx;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 8rpx;
+  overflow: hidden;
+  position: relative;
+}
+
+.volume-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #07c160, #00b4d8);
+  border-radius: 8rpx;
+  transition: width 0.1s ease;
+  position: relative;
+}
+
+.volume-bar::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: -2rpx;
+  width: 20rpx;
+  height: 20rpx;
+  background: #fff;
+  border: 2rpx solid #07c160;
+  border-radius: 50%;
+  box-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.2);
 }
 
 /* Canvas容器 */

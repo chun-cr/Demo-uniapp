@@ -114,7 +114,6 @@ var _defineProperty2 = _interopRequireDefault(__webpack_require__(/*! @babel/run
 // 录音管理器，支持多实例
 var RecordManager = /*#__PURE__*/function () {
   function RecordManager() {
-    var _this = this;
     var id = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 'default';
     (0, _classCallCheck2.default)(this, RecordManager);
     this.id = id;
@@ -122,20 +121,11 @@ var RecordManager = /*#__PURE__*/function () {
     this.isRecording = false;
     this.recordTime = 0;
     this.timer = null;
-    this.onTimeUpdate = null;
+    this.onTimeUpdate = null; //用于获取录音时长和格式化时间
     this.onVolumeUpdate = null;
     this.stopResolve = null;
     this.instanceId = Date.now() + Math.random();
     this.stopTimeout = null;
-    this.recorder = uni.getRecorderManager();
-
-    // 监听音量变化
-    this.recorder.onFrameRecorded(function (res) {
-      var volume = res.volume; // 获取音量值
-      if (_this.onVolumeUpdate) {
-        _this.onVolumeUpdate(volume); // 触发音量更新
-      }
-    });
 
     // 注册实例
     RecordManager.instances.set(this.instanceId, this);
@@ -234,12 +224,25 @@ var RecordManager = /*#__PURE__*/function () {
     value: function handleFrameRecordedEvent(res) {
       // 只有当前实例处于录音状态时才处理
       if (this.isRecording) {
-        // 计算音量
-        var volume = this.calculateVolume(res.frameBuffer);
+        // 尝试从不同的属性中获取音频数据
+        var audioData = res.frameBuffer || res.data || res.buffer;
+        if (audioData) {
+          // 如果是ArrayBuffer，需要转换为Uint8Array
+          var frameData = audioData;
+          if (audioData instanceof ArrayBuffer) {
+            frameData = new Uint8Array(audioData);
+          }
 
-        // 触发音量更新回调
-        if (this.onVolumeUpdate) {
-          this.onVolumeUpdate(volume);
+          // 计算音量
+          var volume = this.calculateVolume(frameData);
+          console.log("".concat(this.id, " \u8BA1\u7B97\u97F3\u91CF: ").concat(volume, "%"));
+
+          // 触发音量更新回调
+          if (this.onVolumeUpdate) {
+            this.onVolumeUpdate(volume);
+          }
+        } else {
+          console.warn("".concat(this.id, " \u672A\u627E\u5230\u97F3\u9891\u6570\u636E"));
         }
       }
     }
@@ -248,29 +251,41 @@ var RecordManager = /*#__PURE__*/function () {
   }, {
     key: "calculateVolume",
     value: function calculateVolume(frameData) {
-      if (!frameData || frameData.length === 0) {
-        return 0;
-      }
+      if (!frameData || frameData.length === 0) return 0;
+      var sumSquared = 0;
+      var count = 0;
 
-      // 计算音量（简单实现：取绝对值的平均值，转换为0-100范围）
-      var sum = 0;
-      for (var i = 0; i < frameData.length; i++) {
-        sum += Math.abs(frameData[i]);
+      // 对 MP3 编码数据，我们直接统计字节的偏移程度作为活跃度参考
+      for (var i = 0; i < frameData.length; i += 2) {
+        // 将字节映射到 -128 到 127
+        var sample = frameData[i] - 128;
+        sumSquared += sample * sample;
+        count++;
       }
-      var avg = sum / frameData.length;
-      // 假设最大可能值为32768（16位PCM）
-      var volume = Math.min(Math.max(Math.round(avg / 32768 * 100), 0), 100);
-      return volume;
+      var rms = Math.sqrt(sumSquared / count);
+
+      // 针对 MP3 编码帧的特殊映射：
+      // 1. 经过测试，MP3 帧在静音时的字节能量 rms 通常在 40-60 之间
+      // 2. 我们将门限设为 65，低于此值直接归零
+      // 3. 使用更强的二次方曲线
+      var volume = 0;
+      if (rms > 65) {
+        // 映射范围：(rms - 门限) / (最大预期能量 - 门限)
+        // 这里取 100 为最大预期能量
+        var normalized = Math.min((rms - 65) / 35, 1);
+        volume = Math.round(Math.pow(normalized, 2) * 100);
+      }
+      return Math.min(Math.max(volume, 0), 100);
     }
 
     // 开始录音
   }, {
     key: "startRecord",
     value: function startRecord() {
-      var _this2 = this;
+      var _this = this;
       return new Promise(function (resolve, reject) {
-        if (!_this2.recorderManager) {
-          _this2.init();
+        if (!_this.recorderManager) {
+          _this.init();
         }
 
         // 检查权限
@@ -281,7 +296,7 @@ var RecordManager = /*#__PURE__*/function () {
               uni.authorize({
                 scope: 'scope.record',
                 success: function success() {
-                  _this2._doStartRecord();
+                  _this._doStartRecord();
                   resolve();
                 },
                 fail: function fail() {
@@ -299,7 +314,7 @@ var RecordManager = /*#__PURE__*/function () {
               });
             } else {
               // 已有权限
-              _this2._doStartRecord();
+              _this._doStartRecord();
               resolve();
             }
           },
@@ -316,14 +331,25 @@ var RecordManager = /*#__PURE__*/function () {
     value: function _doStartRecord() {
       // 配置录音参数，启用音频帧监听
       var recordOptions = {
+        duration: 600000,
+        // 最大录音时长10分钟
+        sampleRate: 16000,
+        // 采样率
+        numberOfChannels: 1,
+        // 录音通道数
+        encodeBitRate: 96000,
+        // 编码码率
+        format: 'mp3',
+        // 音频格式
         // 启用音频帧数据回调（每帧大小，单位KB）
-        // 设置frameRecordSize可以触发onFrameRecorded事件
+        // 设置frameSize可以触发onFrameRecorded事件
         // 每录制 1KB 的音频数据，触发一次音频帧回调
-        frameRecordSize: 1 // 1KB，约每50ms触发一次
+        frameSize: 1 // 1KB，约每50ms触发一次(微信小程序支持)
       };
 
       // 尝试使用配置参数启动录音
       try {
+        console.log("".concat(this.id, " \u542F\u52A8\u5F55\u97F3\uFF0C\u914D\u7F6E:"), recordOptions);
         this.recorderManager.start(recordOptions);
       } catch (error) {
         // 如果参数不支持，使用默认方式
@@ -339,37 +365,37 @@ var RecordManager = /*#__PURE__*/function () {
   }, {
     key: "stopRecord",
     value: function stopRecord() {
-      var _this3 = this;
+      var _this2 = this;
       return new Promise(function (resolve) {
-        console.log("".concat(_this3.id, " \u5F00\u59CB\u505C\u6B62\u5F55\u97F3\uFF0C\u5F53\u524DisRecording: ").concat(_this3.isRecording));
-        if (_this3.recorderManager && _this3.isRecording) {
+        console.log("".concat(_this2.id, " \u5F00\u59CB\u505C\u6B62\u5F55\u97F3\uFF0C\u5F53\u524DisRecording: ").concat(_this2.isRecording));
+        if (_this2.recorderManager && _this2.isRecording) {
           // 保存resolve函数
-          _this3.stopResolve = resolve;
+          _this2.stopResolve = resolve;
 
           // 调用录音管理器的stop方法
-          _this3.recorderManager.stop();
+          _this2.recorderManager.stop();
 
           // 添加超时处理，防止onStop回调不触发导致Promise永远pending
-          _this3.stopTimeout = setTimeout(function () {
-            console.warn("".concat(_this3.id, " \u5F55\u97F3\u505C\u6B62\u8D85\u65F6\uFF0C\u5F3A\u5236resolve"));
+          _this2.stopTimeout = setTimeout(function () {
+            console.warn("".concat(_this2.id, " \u5F55\u97F3\u505C\u6B62\u8D85\u65F6\uFF0C\u5F3A\u5236resolve"));
 
             // 更新状态
-            _this3.isRecording = false;
-            _this3.stopTimer();
+            _this2.isRecording = false;
+            _this2.stopTimer();
 
             // 调用resolve
-            if (_this3.stopResolve) {
-              _this3.stopResolve();
-              _this3.stopResolve = null;
+            if (_this2.stopResolve) {
+              _this2.stopResolve();
+              _this2.stopResolve = null;
             }
 
             // 清除超时计时器
-            _this3.stopTimeout = null;
+            _this2.stopTimeout = null;
           }, 3000); // 3秒超时
 
-          console.log("".concat(_this3.id, " \u5DF2\u8C03\u7528recorderManager.stop()"));
+          console.log("".concat(_this2.id, " \u5DF2\u8C03\u7528recorderManager.stop()"));
         } else {
-          console.log("".concat(_this3.id, " \u672A\u5904\u4E8E\u5F55\u97F3\u72B6\u6001\uFF0C\u76F4\u63A5resolve"));
+          console.log("".concat(_this2.id, " \u672A\u5904\u4E8E\u5F55\u97F3\u72B6\u6001\uFF0C\u76F4\u63A5resolve"));
           resolve();
         }
       });
@@ -379,14 +405,14 @@ var RecordManager = /*#__PURE__*/function () {
   }, {
     key: "startTimer",
     value: function startTimer() {
-      var _this4 = this;
+      var _this3 = this;
       // 先清除之前可能存在的计时器，防止多个计时器同时运行
       this.stopTimer();
       this.recordTime = 0;
       this.timer = setInterval(function () {
-        _this4.recordTime++; // 只是更新了类的属性
-        if (_this4.onTimeUpdate) {
-          _this4.onTimeUpdate(_this4.recordTime, _this4.getFormattedTime());
+        _this3.recordTime++; // 只是更新了类的属性
+        if (_this3.onTimeUpdate) {
+          _this3.onTimeUpdate(_this3.recordTime, _this3.getFormattedTime());
         }
       }, 1000);
     }
@@ -473,7 +499,9 @@ var RecordManager = /*#__PURE__*/function () {
         RecordManager.recorderManager.onFrameRecorded(function (res) {
           // 通知所有活跃实例
           RecordManager.instances.forEach(function (instance) {
-            instance.handleFrameRecordedEvent(res);
+            if (instance.isRecording) {
+              instance.handleFrameRecordedEvent(res);
+            }
           });
         });
         RecordManager.isInitialized = true;

@@ -10,7 +10,7 @@ class RecordManager {
         this.isRecording = false
         this.recordTime = 0
         this.timer = null
-        this.onTimeUpdate = null  //用于获取录音时长和格式化时间
+        this.onTimeUpdate = null
         this.onVolumeUpdate = null
         this.stopResolve = null
         this.instanceId = Date.now() + Math.random()
@@ -59,11 +59,11 @@ class RecordManager {
             
             // 监听音频帧数据（用于计算音量）
             RecordManager.recorderManager.onFrameRecorded((res) => {
+                const { frameBuffer } = res
+                console.log( '音频帧数据:', frameBuffer )
                 // 通知所有活跃实例
                 RecordManager.instances.forEach(instance => {
-                    if (instance.isRecording) {
-                        instance.handleFrameRecordedEvent(res)
-                    }
+                    instance.handleFrameRecordedEvent(res)
                 })
             })
             
@@ -145,26 +145,13 @@ class RecordManager {
     handleFrameRecordedEvent(res) {
         // 只有当前实例处于录音状态时才处理
         if (this.isRecording) {
-            // 尝试从不同的属性中获取音频数据
-            const audioData = res.frameBuffer || res.data || res.buffer
+            // 计算音量
+            const volume = this.calculateVolume(res.frameBuffer)
+            console.log(volume.length)
             
-            if (audioData) {
-                // 如果是ArrayBuffer，需要转换为Uint8Array
-                let frameData = audioData
-                if (audioData instanceof ArrayBuffer) {
-                    frameData = new Uint8Array(audioData)
-                }
-                
-                // 计算音量
-                const volume = this.calculateVolume(frameData)
-                console.log(`${this.id} 计算音量: ${volume}%`)
-                
-                // 触发音量更新回调
-                if (this.onVolumeUpdate) {
-                    this.onVolumeUpdate(volume)
-                }
-            } else {
-                console.warn(`${this.id} 未找到音频数据`)
+            // 触发音量更新回调
+            if (this.onVolumeUpdate) {
+                this.onVolumeUpdate(volume)
             }
         }
     }
@@ -174,32 +161,21 @@ class RecordManager {
         if (!frameData || frameData.length === 0) return 0;
 
         let sumSquared = 0;
-        let count = 0;
+        const sampleCount = frameData.length / 2; // 每两个字节一个样本（16位）
 
-        // 对 MP3 编码数据，我们直接统计字节的偏移程度作为活跃度参考
         for (let i = 0; i < frameData.length; i += 2) {
-            // 将字节映射到 -128 到 127
-            const sample = frameData[i] - 128;
-            sumSquared += sample * sample;
-            count++;
+            // 组合两个字节为一个 16 位有符号整数（小端序）
+            const sample = (frameData[i + 1] << 8) | frameData[i];
+            const signedSample = sample > 32767 ? sample - 65536 : sample;
+            sumSquared += signedSample * signedSample; // 平方用于 RMS
         }
 
-        const rms = Math.sqrt(sumSquared / count);
-        
-        // 针对 MP3 编码帧的特殊映射：
-        // 1. 经过测试，MP3 帧在静音时的字节能量 rms 通常在 40-60 之间
-        // 2. 我们将门限设为 65，低于此值直接归零
-        // 3. 使用更强的二次方曲线
-        let volume = 0;
-        if (rms > 65) {
-            // 映射范围：(rms - 门限) / (最大预期能量 - 门限)
-            // 这里取 100 为最大预期能量
-            const normalized = Math.min((rms - 65) / 35, 1);
-            volume = Math.round(Math.pow(normalized, 2) * 100);
-        }
+        const rms = Math.sqrt(sumSquared / sampleCount);
+        const volume = Math.min(Math.max(Math.round((rms / 32768) * 100), 0), 100);
 
-        return Math.min(Math.max(volume, 0), 100);
+        return volume;
     }
+
 
     // 开始录音
     startRecord() {
@@ -249,20 +225,14 @@ class RecordManager {
     _doStartRecord() {
         // 配置录音参数，启用音频帧监听
         const recordOptions = {
-            duration: 600000,        // 最大录音时长10分钟
-            sampleRate: 16000,       // 采样率
-            numberOfChannels: 1,     // 录音通道数
-            encodeBitRate: 96000,    // 编码码率
-            format: 'mp3',           // 音频格式
             // 启用音频帧数据回调（每帧大小，单位KB）
-            // 设置frameSize可以触发onFrameRecorded事件
+            // 设置frameRecordSize可以触发onFrameRecorded事件
             // 每录制 1KB 的音频数据，触发一次音频帧回调
-            frameSize: 1             // 1KB，约每50ms触发一次(微信小程序支持)
+            frameRecordSize: 1  // 1KB，约每50ms触发一次
         }
 
         // 尝试使用配置参数启动录音
         try {
-            console.log(`${this.id} 启动录音，配置:`, recordOptions)
             this.recorderManager.start(recordOptions)
         } catch (error) {
             // 如果参数不支持，使用默认方式
