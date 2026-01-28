@@ -132,6 +132,10 @@
   background: #1989fa;
   color: white;
 }
+.upload-btn.data-v-82205bd8 {
+  background: #b9d12e;
+  color: white;
+}
 
 /* 调试信息 */
 .debug-info.data-v-82205bd8 {

@@ -1,6 +1,6 @@
-(global["webpackJsonp"] = global["webpackJsonp"] || []).push([["common/vendor"],{
-
-/***/ 1:
+(global["webpackJsonp"] = global["webpackJsonp"] || []).push([["common/vendor"],[
+/* 0 */,
+/* 1 */
 /*!*********************************************************!*\
   !*** ./node_modules/@dcloudio/uni-mp-weixin/dist/wx.js ***!
   \*********************************************************/
@@ -52,831 +52,7 @@ var _default = target[key];
 exports.default = _default;
 
 /***/ }),
-
-/***/ 10:
-/*!****************************************************************!*\
-  !*** ./node_modules/@babel/runtime/helpers/nonIterableRest.js ***!
-  \****************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports) {
-
-function _nonIterableRest() {
-  throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
-}
-module.exports = _nonIterableRest, module.exports.__esModule = true, module.exports["default"] = module.exports;
-
-/***/ }),
-
-/***/ 11:
-/*!***************************************************************!*\
-  !*** ./node_modules/@babel/runtime/helpers/defineProperty.js ***!
-  \***************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-var toPropertyKey = __webpack_require__(/*! ./toPropertyKey.js */ 12);
-function _defineProperty(obj, key, value) {
-  key = toPropertyKey(key);
-  if (key in obj) {
-    Object.defineProperty(obj, key, {
-      value: value,
-      enumerable: true,
-      configurable: true,
-      writable: true
-    });
-  } else {
-    obj[key] = value;
-  }
-  return obj;
-}
-module.exports = _defineProperty, module.exports.__esModule = true, module.exports["default"] = module.exports;
-
-/***/ }),
-
-/***/ 116:
-/*!*******************************************************************!*\
-  !*** D:/documents/HBuilderProject1/demo2/utils/record-manager.js ***!
-  \*******************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-/* WEBPACK VAR INJECTION */(function(uni) {
-
-var _interopRequireDefault = __webpack_require__(/*! @babel/runtime/helpers/interopRequireDefault */ 4);
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.default = exports.RecordManager = void 0;
-var _classCallCheck2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/classCallCheck */ 23));
-var _createClass2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/createClass */ 24));
-var _defineProperty2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/defineProperty */ 11));
-// 录音管理器，支持多实例
-var RecordManager = /*#__PURE__*/function () {
-  function RecordManager() {
-    var id = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 'default';
-    (0, _classCallCheck2.default)(this, RecordManager);
-    this.id = id;
-    this.tempFilePath = '';
-    this.isRecording = false;
-    this.recordTime = 0;
-    this.timer = null;
-    this.onTimeUpdate = null; //用于获取录音时长和格式化时间
-    this.onVolumeUpdate = null;
-    this.stopResolve = null;
-    this.instanceId = Date.now() + Math.random();
-    this.stopTimeout = null;
-
-    // 注册实例
-    RecordManager.instances.set(this.instanceId, this);
-    console.log("\u521B\u5EFA\u5F55\u97F3\u7BA1\u7406\u5668\u5B9E\u4F8B: ".concat(this.id, ", \u5B9E\u4F8BID: ").concat(this.instanceId));
-  }
-  /*
-  uni.getRecorderManager() 是全局唯一的：
-  uni-app 中，无论调用多少次 uni.getRecorderManager()，返回的都是同一个录音管理器实例（类似单例模式），无法为每个 RecordManager 实例创建独立的录音管理器。
-   由于录音管理器是全局的，其 onStop/onError 事件会在 “任何实例停止录音” 或 “任何实例发生错误” 时触发。
-  此时需要通过 RecordManager.instances 遍历所有实例，将事件分发给对应的实例（每个实例通过 isRecording 判断是否需要处理该事件）
-   如果不通过 isInitialized 控制，每次创建 RecordManager 实例都初始化一次，会导致 onStop/onError 事件被重复绑定，引发多次回调的问题。
-  */
-
-  // 静态初始化录音管理器
-  (0, _createClass2.default)(RecordManager, [{
-    key: "init",
-    value:
-    // 初始化实例
-    function init() {
-      // 确保静态录音管理器已初始化
-      RecordManager.initStaticRecorder();
-      this.recorderManager = RecordManager.recorderManager;
-      console.log("\u521D\u59CB\u5316\u5F55\u97F3\u7BA1\u7406\u5668\u5B9E\u4F8B: ".concat(this.id));
-    }
-
-    // 处理录音结束事件
-  }, {
-    key: "handleStopEvent",
-    value: function handleStopEvent(res) {
-      console.log("".concat(this.id, " \u5904\u7406\u5F55\u97F3\u7ED3\u675F\u4E8B\u4EF6\uFF0C\u5F53\u524DisRecording: ").concat(this.isRecording));
-
-      // 只有当前实例处于录音状态时才处理
-      if (this.isRecording) {
-        this.isRecording = false;
-        this.stopTimer();
-        this.tempFilePath = res.tempFilePath;
-
-        // 清除超时计时器
-        if (this.stopTimeout) {
-          clearTimeout(this.stopTimeout);
-          this.stopTimeout = null;
-        }
-        if (this.stopResolve) {
-          console.log("".concat(this.id, " \u8C03\u7528stopResolve"));
-          this.stopResolve();
-          this.stopResolve = null;
-        }
-      }
-    }
-
-    // 处理录音错误事件
-  }, {
-    key: "handleErrorEvent",
-    value: function handleErrorEvent(err) {
-      console.log("".concat(this.id, " \u5904\u7406\u5F55\u97F3\u9519\u8BEF\u4E8B\u4EF6\uFF0C\u5F53\u524DisRecording: ").concat(this.isRecording));
-
-      // 只有当前实例处于录音状态时才处理
-      if (this.isRecording) {
-        this.isRecording = false;
-        this.stopTimer();
-
-        // 清除超时计时器
-        if (this.stopTimeout) {
-          clearTimeout(this.stopTimeout);
-          this.stopTimeout = null;
-        }
-        if (this.stopResolve) {
-          console.log("".concat(this.id, " \u8C03\u7528stopResolve\uFF08\u9519\u8BEF\uFF09"));
-          this.stopResolve();
-          this.stopResolve = null;
-        }
-        uni.showToast({
-          title: '录音失败: ' + (err.errMsg || err.message),
-          icon: 'none'
-        });
-      }
-    }
-
-    // 设置时间更新回调
-  }, {
-    key: "setTimeUpdateCallback",
-    value: function setTimeUpdateCallback(callback) {
-      this.onTimeUpdate = callback;
-    }
-
-    // 设置音量更新回调
-  }, {
-    key: "setVolumeUpdateCallback",
-    value: function setVolumeUpdateCallback(callback) {
-      this.onVolumeUpdate = callback;
-    }
-
-    // 处理音频帧事件
-  }, {
-    key: "handleFrameRecordedEvent",
-    value: function handleFrameRecordedEvent(res) {
-      // 只有当前实例处于录音状态时才处理
-      if (this.isRecording) {
-        // 尝试从不同的属性中获取音频数据
-        var audioData = res.frameBuffer || res.data || res.buffer;
-        if (audioData) {
-          // 如果是ArrayBuffer，需要转换为Uint8Array
-          var frameData = audioData;
-          if (audioData instanceof ArrayBuffer) {
-            frameData = new Uint8Array(audioData);
-          }
-
-          // 计算音量
-          var volume = this.calculateVolume(frameData);
-          console.log("".concat(this.id, " \u8BA1\u7B97\u97F3\u91CF: ").concat(volume, "%"));
-
-          // 触发音量更新回调
-          if (this.onVolumeUpdate) {
-            this.onVolumeUpdate(volume);
-          }
-        } else {
-          console.warn("".concat(this.id, " \u672A\u627E\u5230\u97F3\u9891\u6570\u636E"));
-        }
-      }
-    }
-
-    // 计算音量
-  }, {
-    key: "calculateVolume",
-    value: function calculateVolume(frameData) {
-      if (!frameData || frameData.length === 0) return 0;
-      var sumSquared = 0;
-      var count = 0;
-
-      // 对 MP3 编码数据，我们直接统计字节的偏移程度作为活跃度参考
-      for (var i = 0; i < frameData.length; i += 2) {
-        // 将字节映射到 -128 到 127
-        var sample = frameData[i] - 128;
-        sumSquared += sample * sample;
-        count++;
-      }
-      var rms = Math.sqrt(sumSquared / count);
-
-      // 针对 MP3 编码帧的特殊映射：
-      // 1. 经过测试，MP3 帧在静音时的字节能量 rms 通常在 40-60 之间
-      // 2. 我们将门限设为 65，低于此值直接归零
-      // 3. 使用更强的二次方曲线
-      var volume = 0;
-      if (rms > 65) {
-        // 映射范围：(rms - 门限) / (最大预期能量 - 门限)
-        // 这里取 100 为最大预期能量
-        var normalized = Math.min((rms - 65) / 35, 1);
-        volume = Math.round(Math.pow(normalized, 2) * 100);
-      }
-      return Math.min(Math.max(volume, 0), 100);
-    }
-
-    // 开始录音
-  }, {
-    key: "startRecord",
-    value: function startRecord() {
-      var _this = this;
-      return new Promise(function (resolve, reject) {
-        if (!_this.recorderManager) {
-          _this.init();
-        }
-
-        // 检查权限
-        uni.getSetting({
-          success: function success(res) {
-            if (!res.authSetting['scope.record']) {
-              // 申请录音权限
-              uni.authorize({
-                scope: 'scope.record',
-                success: function success() {
-                  _this._doStartRecord();
-                  resolve();
-                },
-                fail: function fail() {
-                  uni.showModal({
-                    title: '提示',
-                    content: '需要录音权限，请允许使用麦克风',
-                    success: function success(modalRes) {
-                      if (modalRes.confirm) {
-                        uni.openSetting();
-                      }
-                    }
-                  });
-                  reject('权限被拒绝');
-                }
-              });
-            } else {
-              // 已有权限
-              _this._doStartRecord();
-              resolve();
-            }
-          },
-          fail: function fail(err) {
-            reject('检查权限失败: ' + (err.errMsg || err.message));
-          }
-        });
-      });
-    }
-
-    // 执行开始录音
-  }, {
-    key: "_doStartRecord",
-    value: function _doStartRecord() {
-      // 配置录音参数，启用音频帧监听
-      var recordOptions = {
-        duration: 600000,
-        // 最大录音时长10分钟
-        sampleRate: 16000,
-        // 采样率
-        numberOfChannels: 1,
-        // 录音通道数
-        encodeBitRate: 96000,
-        // 编码码率
-        format: 'mp3',
-        // 音频格式
-        // 启用音频帧数据回调（每帧大小，单位KB）
-        // 设置frameSize可以触发onFrameRecorded事件
-        // 每录制 1KB 的音频数据，触发一次音频帧回调
-        frameSize: 1 // 1KB，约每50ms触发一次(微信小程序支持)
-      };
-
-      // 尝试使用配置参数启动录音
-      try {
-        console.log("".concat(this.id, " \u542F\u52A8\u5F55\u97F3\uFF0C\u914D\u7F6E:"), recordOptions);
-        this.recorderManager.start(recordOptions);
-      } catch (error) {
-        // 如果参数不支持，使用默认方式
-        console.warn("".concat(this.id, " \u4F7F\u7528\u914D\u7F6E\u53C2\u6570\u542F\u52A8\u5931\u8D25\uFF0C\u4F7F\u7528\u9ED8\u8BA4\u65B9\u5F0F:"), error);
-        this.recorderManager.start();
-      }
-      this.isRecording = true;
-      this.startTimer();
-      console.log("".concat(this.id, " \u5F55\u97F3\u5DF2\u542F\u52A8"));
-    }
-
-    // 停止录音
-  }, {
-    key: "stopRecord",
-    value: function stopRecord() {
-      var _this2 = this;
-      return new Promise(function (resolve) {
-        console.log("".concat(_this2.id, " \u5F00\u59CB\u505C\u6B62\u5F55\u97F3\uFF0C\u5F53\u524DisRecording: ").concat(_this2.isRecording));
-        if (_this2.recorderManager && _this2.isRecording) {
-          // 保存resolve函数
-          _this2.stopResolve = resolve;
-
-          // 调用录音管理器的stop方法
-          _this2.recorderManager.stop();
-
-          // 添加超时处理，防止onStop回调不触发导致Promise永远pending
-          _this2.stopTimeout = setTimeout(function () {
-            console.warn("".concat(_this2.id, " \u5F55\u97F3\u505C\u6B62\u8D85\u65F6\uFF0C\u5F3A\u5236resolve"));
-
-            // 更新状态
-            _this2.isRecording = false;
-            _this2.stopTimer();
-
-            // 调用resolve
-            if (_this2.stopResolve) {
-              _this2.stopResolve();
-              _this2.stopResolve = null;
-            }
-
-            // 清除超时计时器
-            _this2.stopTimeout = null;
-          }, 3000); // 3秒超时
-
-          console.log("".concat(_this2.id, " \u5DF2\u8C03\u7528recorderManager.stop()"));
-        } else {
-          console.log("".concat(_this2.id, " \u672A\u5904\u4E8E\u5F55\u97F3\u72B6\u6001\uFF0C\u76F4\u63A5resolve"));
-          resolve();
-        }
-      });
-    }
-
-    // 开始计时
-  }, {
-    key: "startTimer",
-    value: function startTimer() {
-      var _this3 = this;
-      // 先清除之前可能存在的计时器，防止多个计时器同时运行
-      this.stopTimer();
-      this.recordTime = 0;
-      this.timer = setInterval(function () {
-        _this3.recordTime++; // 只是更新了类的属性
-        if (_this3.onTimeUpdate) {
-          _this3.onTimeUpdate(_this3.recordTime, _this3.getFormattedTime());
-        }
-      }, 1000);
-    }
-
-    // 停止计时
-  }, {
-    key: "stopTimer",
-    value: function stopTimer() {
-      console.log("".concat(this.id, " \u505C\u6B62\u8BA1\u65F6"));
-      if (this.timer) {
-        clearInterval(this.timer);
-        this.timer = null;
-      }
-
-      // 同时清除可能存在的停止超时计时器
-      if (this.stopTimeout) {
-        clearTimeout(this.stopTimeout);
-        this.stopTimeout = null;
-      }
-    }
-
-    // 获取录音文件路径
-  }, {
-    key: "getRecordFile",
-    value: function getRecordFile() {
-      return this.tempFilePath;
-    }
-
-    // 格式化时间
-  }, {
-    key: "getFormattedTime",
-    value: function getFormattedTime() {
-      var minutes = Math.floor(this.recordTime / 60);
-      var seconds = this.recordTime % 60;
-      return "".concat(minutes.toString().padStart(2, '0'), ":").concat(seconds.toString().padStart(2, '0'));
-    }
-
-    // 清理
-  }, {
-    key: "destroy",
-    value: function destroy() {
-      console.log("".concat(this.id, " \u5F00\u59CB\u6E05\u7406"));
-
-      // 停止录音
-      if (this.isRecording) {
-        this.stopRecord();
-      }
-
-      // 停止计时和超时计时器
-      this.stopTimer();
-
-      // 从实例列表中移除
-      RecordManager.instances.delete(this.instanceId);
-      console.log("".concat(this.id, " \u6E05\u7406\u5B8C\u6210"));
-    }
-  }], [{
-    key: "initStaticRecorder",
-    value: function initStaticRecorder() {
-      if (!RecordManager.isInitialized) {
-        console.log('初始化静态录音管理器');
-        RecordManager.recorderManager = uni.getRecorderManager();
-
-        // 监听录音结束（静态事件，通知所有实例）
-        RecordManager.recorderManager.onStop(function (res) {
-          console.log('静态录音结束事件', res);
-
-          // 通知所有活跃实例
-          RecordManager.instances.forEach(function (instance) {
-            instance.handleStopEvent(res);
-          });
-        });
-
-        // 监听录音错误（静态事件，通知所有实例）
-        RecordManager.recorderManager.onError(function (err) {
-          console.error('静态录音错误事件:', err);
-
-          // 通知所有活跃实例
-          RecordManager.instances.forEach(function (instance) {
-            instance.handleErrorEvent(err);
-          });
-        });
-
-        // 监听音频帧数据（用于计算音量）
-        RecordManager.recorderManager.onFrameRecorded(function (res) {
-          // 通知所有活跃实例
-          RecordManager.instances.forEach(function (instance) {
-            if (instance.isRecording) {
-              instance.handleFrameRecordedEvent(res);
-            }
-          });
-        });
-        RecordManager.isInitialized = true;
-      }
-    }
-  }]);
-  return RecordManager;
-}(); // 导出单例
-exports.RecordManager = RecordManager;
-(0, _defineProperty2.default)(RecordManager, "recorderManager", null);
-(0, _defineProperty2.default)(RecordManager, "instances", new Map());
-(0, _defineProperty2.default)(RecordManager, "isInitialized", false);
-var recordManagerInstance = new RecordManager();
-var _default = recordManagerInstance; //导出类
-exports.default = _default;
-/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./node_modules/@dcloudio/uni-mp-weixin/dist/index.js */ 2)["default"]))
-
-/***/ }),
-
-/***/ 12:
-/*!**************************************************************!*\
-  !*** ./node_modules/@babel/runtime/helpers/toPropertyKey.js ***!
-  \**************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-var _typeof = __webpack_require__(/*! ./typeof.js */ 13)["default"];
-var toPrimitive = __webpack_require__(/*! ./toPrimitive.js */ 14);
-function toPropertyKey(t) {
-  var i = toPrimitive(t, "string");
-  return "symbol" == _typeof(i) ? i : i + "";
-}
-module.exports = toPropertyKey, module.exports.__esModule = true, module.exports["default"] = module.exports;
-
-/***/ }),
-
-/***/ 13:
-/*!*******************************************************!*\
-  !*** ./node_modules/@babel/runtime/helpers/typeof.js ***!
-  \*******************************************************/
-/*! no static exports found */
-/***/ (function(module, exports) {
-
-function _typeof(o) {
-  "@babel/helpers - typeof";
-
-  return (module.exports = _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) {
-    return typeof o;
-  } : function (o) {
-    return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o;
-  }, module.exports.__esModule = true, module.exports["default"] = module.exports), _typeof(o);
-}
-module.exports = _typeof, module.exports.__esModule = true, module.exports["default"] = module.exports;
-
-/***/ }),
-
-/***/ 137:
-/*!********************************************************************************!*\
-  !*** D:/documents/HBuilderProject1/demo2/pages/canvas-record/canvas-record.js ***!
-  \********************************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-var _classCallCheck = __webpack_require__(/*! @babel/runtime/helpers/classCallCheck */ 23);
-var _createClass = __webpack_require__(/*! @babel/runtime/helpers/createClass */ 24);
-// Canvas录音波形图管理器
-var CanvasWaveformManager = /*#__PURE__*/function () {
-  "use strict";
-
-  function CanvasWaveformManager(canvasContext, canvasWidth, canvasHeight) {
-    _classCallCheck(this, CanvasWaveformManager);
-    this.canvasContext = canvasContext;
-    this.canvasWidth = canvasWidth;
-    this.canvasHeight = canvasHeight;
-    this.waveformPoints = [];
-    this.maxPoints = 200; // 最大波形点数
-    this.lastDrawTime = 0;
-    this.drawInterval = 50; // 绘制间隔（ms）
-    this.currentVolume = 0;
-  }
-
-  // 更新音量
-  _createClass(CanvasWaveformManager, [{
-    key: "updateVolume",
-    value: function updateVolume(volume) {
-      this.currentVolume = volume;
-      this.addWaveformPoint(volume);
-    }
-
-    // 添加波形点
-  }, {
-    key: "addWaveformPoint",
-    value: function addWaveformPoint(volume) {
-      // 将音量转换为波形高度（0-100 -> 0-canvasHeight/2）
-      var maxHeight = this.canvasHeight / 2;
-      var height = volume / 100 * maxHeight;
-
-      // 添加新点
-      this.waveformPoints.push({
-        volume: volume,
-        height: height,
-        timestamp: Date.now()
-      });
-
-      // 限制点数，保持滚动效果
-      if (this.waveformPoints.length > this.maxPoints) {
-        this.waveformPoints.shift();
-      }
-
-      // 使用节流控制绘制频率，避免过度绘制
-      var now = Date.now();
-      if (now - this.lastDrawTime >= this.drawInterval) {
-        this.drawWaveform();
-        this.lastDrawTime = now;
-      }
-    }
-
-    // 绘制波形
-  }, {
-    key: "drawWaveform",
-    value: function drawWaveform() {
-      var ctx = this.canvasContext;
-      if (!ctx || this.waveformPoints.length === 0) return;
-
-      // 清空画布
-      ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
-
-      // 绘制背景
-      ctx.setFillStyle('#f5f5f5');
-      ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
-
-      // 绘制中心线
-      ctx.setStrokeStyle('#e0e0e0');
-      ctx.setLineWidth(1);
-      ctx.beginPath();
-      ctx.moveTo(0, this.canvasHeight / 2);
-      ctx.lineTo(this.canvasWidth, this.canvasHeight / 2);
-      ctx.stroke();
-
-      // 计算每个点的X坐标间隔
-      var pointSpacing = this.canvasWidth / this.maxPoints;
-      var centerY = this.canvasHeight / 2;
-
-      // 绘制上半部分波形（绿色）
-      ctx.setStrokeStyle('#07c160');
-      ctx.setLineWidth(2);
-      ctx.beginPath();
-      for (var i = 0; i < this.waveformPoints.length; i++) {
-        var x = i * pointSpacing;
-        var y = centerY - this.waveformPoints[i].height;
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      }
-      ctx.stroke();
-
-      // 绘制下半部分波形（对称）
-      ctx.beginPath();
-      for (var _i = 0; _i < this.waveformPoints.length; _i++) {
-        var _x = _i * pointSpacing;
-        var _y = centerY + this.waveformPoints[_i].height;
-        if (_i === 0) {
-          ctx.moveTo(_x, _y);
-        } else {
-          ctx.lineTo(_x, _y);
-        }
-      }
-      ctx.stroke();
-
-      // 填充波形区域（渐变效果）
-      if (this.waveformPoints.length > 1) {
-        // 上半部分填充
-        ctx.setFillStyle('rgba(7, 193, 96, 0.2)');
-        ctx.beginPath();
-        ctx.moveTo(0, centerY);
-        for (var _i2 = 0; _i2 < this.waveformPoints.length; _i2++) {
-          var _x2 = _i2 * pointSpacing;
-          var _y2 = centerY - this.waveformPoints[_i2].height;
-          ctx.lineTo(_x2, _y2);
-        }
-        ctx.lineTo((this.waveformPoints.length - 1) * pointSpacing, centerY);
-        ctx.closePath();
-        ctx.fill();
-
-        // 下半部分填充
-        ctx.beginPath();
-        ctx.moveTo(0, centerY);
-        for (var _i3 = 0; _i3 < this.waveformPoints.length; _i3++) {
-          var _x3 = _i3 * pointSpacing;
-          var _y3 = centerY + this.waveformPoints[_i3].height;
-          ctx.lineTo(_x3, _y3);
-        }
-        ctx.lineTo((this.waveformPoints.length - 1) * pointSpacing, centerY);
-        ctx.closePath();
-        ctx.fill();
-      }
-
-      // 绘制当前音量指示线
-      if (this.waveformPoints.length > 0) {
-        var lastIndex = this.waveformPoints.length - 1;
-        var _x4 = lastIndex * pointSpacing;
-        ctx.setStrokeStyle('#ff4444');
-        ctx.setLineWidth(2);
-        ctx.beginPath();
-        ctx.moveTo(_x4, 0);
-        ctx.lineTo(_x4, this.canvasHeight);
-        ctx.stroke();
-      }
-
-      // 提交绘制
-      ctx.draw();
-    }
-
-    // 绘制初始背景
-  }, {
-    key: "drawBackground",
-    value: function drawBackground() {
-      var ctx = this.canvasContext;
-      if (!ctx) return;
-
-      // 清空画布
-      ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
-
-      // 绘制背景
-      ctx.setFillStyle('#f5f5f5');
-      ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
-
-      // 绘制中心线
-      ctx.setStrokeStyle('#e0e0e0');
-      ctx.setLineWidth(1);
-      ctx.beginPath();
-      ctx.moveTo(0, this.canvasHeight / 2);
-      ctx.lineTo(this.canvasWidth, this.canvasHeight / 2);
-      ctx.stroke();
-      ctx.draw();
-    }
-
-    // 重置波形
-  }, {
-    key: "reset",
-    value: function reset() {
-      this.waveformPoints = [];
-      this.currentVolume = 0;
-      this.drawBackground();
-    }
-
-    // 更新Canvas尺寸
-  }, {
-    key: "updateCanvasSize",
-    value: function updateCanvasSize(width, height) {
-      this.canvasWidth = width;
-      this.canvasHeight = height;
-    }
-  }]);
-  return CanvasWaveformManager;
-}(); // 导出
-module.exports = CanvasWaveformManager;
-
-/***/ }),
-
-/***/ 14:
-/*!************************************************************!*\
-  !*** ./node_modules/@babel/runtime/helpers/toPrimitive.js ***!
-  \************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-var _typeof = __webpack_require__(/*! ./typeof.js */ 13)["default"];
-function toPrimitive(t, r) {
-  if ("object" != _typeof(t) || !t) return t;
-  var e = t[Symbol.toPrimitive];
-  if (void 0 !== e) {
-    var i = e.call(t, r || "default");
-    if ("object" != _typeof(i)) return i;
-    throw new TypeError("@@toPrimitive must return a primitive value.");
-  }
-  return ("string" === r ? String : Number)(t);
-}
-module.exports = toPrimitive, module.exports.__esModule = true, module.exports["default"] = module.exports;
-
-/***/ }),
-
-/***/ 15:
-/*!**********************************************************!*\
-  !*** ./node_modules/@babel/runtime/helpers/construct.js ***!
-  \**********************************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-var setPrototypeOf = __webpack_require__(/*! ./setPrototypeOf.js */ 16);
-var isNativeReflectConstruct = __webpack_require__(/*! ./isNativeReflectConstruct.js */ 17);
-function _construct(t, e, r) {
-  if (isNativeReflectConstruct()) return Reflect.construct.apply(null, arguments);
-  var o = [null];
-  o.push.apply(o, e);
-  var p = new (t.bind.apply(t, o))();
-  return r && setPrototypeOf(p, r.prototype), p;
-}
-module.exports = _construct, module.exports.__esModule = true, module.exports["default"] = module.exports;
-
-/***/ }),
-
-/***/ 16:
-/*!***************************************************************!*\
-  !*** ./node_modules/@babel/runtime/helpers/setPrototypeOf.js ***!
-  \***************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports) {
-
-function _setPrototypeOf(o, p) {
-  module.exports = _setPrototypeOf = Object.setPrototypeOf ? Object.setPrototypeOf.bind() : function _setPrototypeOf(o, p) {
-    o.__proto__ = p;
-    return o;
-  }, module.exports.__esModule = true, module.exports["default"] = module.exports;
-  return _setPrototypeOf(o, p);
-}
-module.exports = _setPrototypeOf, module.exports.__esModule = true, module.exports["default"] = module.exports;
-
-/***/ }),
-
-/***/ 17:
-/*!*************************************************************************!*\
-  !*** ./node_modules/@babel/runtime/helpers/isNativeReflectConstruct.js ***!
-  \*************************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports) {
-
-function _isNativeReflectConstruct() {
-  try {
-    var t = !Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function () {}));
-  } catch (t) {}
-  return (module.exports = _isNativeReflectConstruct = function _isNativeReflectConstruct() {
-    return !!t;
-  }, module.exports.__esModule = true, module.exports["default"] = module.exports)();
-}
-module.exports = _isNativeReflectConstruct, module.exports.__esModule = true, module.exports["default"] = module.exports;
-
-/***/ }),
-
-/***/ 18:
-/*!******************************************************************!*\
-  !*** ./node_modules/@babel/runtime/helpers/toConsumableArray.js ***!
-  \******************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-var arrayWithoutHoles = __webpack_require__(/*! ./arrayWithoutHoles.js */ 19);
-var iterableToArray = __webpack_require__(/*! ./iterableToArray.js */ 20);
-var unsupportedIterableToArray = __webpack_require__(/*! ./unsupportedIterableToArray.js */ 8);
-var nonIterableSpread = __webpack_require__(/*! ./nonIterableSpread.js */ 21);
-function _toConsumableArray(arr) {
-  return arrayWithoutHoles(arr) || iterableToArray(arr) || unsupportedIterableToArray(arr) || nonIterableSpread();
-}
-module.exports = _toConsumableArray, module.exports.__esModule = true, module.exports["default"] = module.exports;
-
-/***/ }),
-
-/***/ 19:
-/*!******************************************************************!*\
-  !*** ./node_modules/@babel/runtime/helpers/arrayWithoutHoles.js ***!
-  \******************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-var arrayLikeToArray = __webpack_require__(/*! ./arrayLikeToArray.js */ 9);
-function _arrayWithoutHoles(arr) {
-  if (Array.isArray(arr)) return arrayLikeToArray(arr);
-}
-module.exports = _arrayWithoutHoles, module.exports.__esModule = true, module.exports["default"] = module.exports;
-
-/***/ }),
-
-/***/ 2:
+/* 2 */
 /*!************************************************************!*\
   !*** ./node_modules/@dcloudio/uni-mp-weixin/dist/index.js ***!
   \************************************************************/
@@ -3366,8 +2542,336 @@ exports.default = _default;
 /* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./node_modules/@dcloudio/uni-mp-weixin/dist/wx.js */ 1)["default"], __webpack_require__(/*! ./../../../webpack/buildin/global.js */ 3)))
 
 /***/ }),
+/* 3 */
+/*!***********************************!*\
+  !*** (webpack)/buildin/global.js ***!
+  \***********************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
 
-/***/ 20:
+var g;
+
+// This works in non-strict mode
+g = (function() {
+	return this;
+})();
+
+try {
+	// This works if eval is allowed (see CSP)
+	g = g || new Function("return this")();
+} catch (e) {
+	// This works if the window reference is available
+	if (typeof window === "object") g = window;
+}
+
+// g can still be undefined, but nothing to do about it...
+// We return undefined, instead of nothing here, so it's
+// easier to handle this case. if(!global) { ...}
+
+module.exports = g;
+
+
+/***/ }),
+/* 4 */
+/*!**********************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/interopRequireDefault.js ***!
+  \**********************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+function _interopRequireDefault(obj) {
+  return obj && obj.__esModule ? obj : {
+    "default": obj
+  };
+}
+module.exports = _interopRequireDefault, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+/***/ }),
+/* 5 */
+/*!**************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/slicedToArray.js ***!
+  \**************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+var arrayWithHoles = __webpack_require__(/*! ./arrayWithHoles.js */ 6);
+var iterableToArrayLimit = __webpack_require__(/*! ./iterableToArrayLimit.js */ 7);
+var unsupportedIterableToArray = __webpack_require__(/*! ./unsupportedIterableToArray.js */ 8);
+var nonIterableRest = __webpack_require__(/*! ./nonIterableRest.js */ 10);
+function _slicedToArray(arr, i) {
+  return arrayWithHoles(arr) || iterableToArrayLimit(arr, i) || unsupportedIterableToArray(arr, i) || nonIterableRest();
+}
+module.exports = _slicedToArray, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+/***/ }),
+/* 6 */
+/*!***************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/arrayWithHoles.js ***!
+  \***************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+function _arrayWithHoles(arr) {
+  if (Array.isArray(arr)) return arr;
+}
+module.exports = _arrayWithHoles, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+/***/ }),
+/* 7 */
+/*!*********************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/iterableToArrayLimit.js ***!
+  \*********************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+function _iterableToArrayLimit(r, l) {
+  var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"];
+  if (null != t) {
+    var e,
+      n,
+      i,
+      u,
+      a = [],
+      f = !0,
+      o = !1;
+    try {
+      if (i = (t = t.call(r)).next, 0 === l) {
+        if (Object(t) !== t) return;
+        f = !1;
+      } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0) {
+        ;
+      }
+    } catch (r) {
+      o = !0, n = r;
+    } finally {
+      try {
+        if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return;
+      } finally {
+        if (o) throw n;
+      }
+    }
+    return a;
+  }
+}
+module.exports = _iterableToArrayLimit, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+/***/ }),
+/* 8 */
+/*!***************************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/unsupportedIterableToArray.js ***!
+  \***************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+var arrayLikeToArray = __webpack_require__(/*! ./arrayLikeToArray.js */ 9);
+function _unsupportedIterableToArray(o, minLen) {
+  if (!o) return;
+  if (typeof o === "string") return arrayLikeToArray(o, minLen);
+  var n = Object.prototype.toString.call(o).slice(8, -1);
+  if (n === "Object" && o.constructor) n = o.constructor.name;
+  if (n === "Map" || n === "Set") return Array.from(o);
+  if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return arrayLikeToArray(o, minLen);
+}
+module.exports = _unsupportedIterableToArray, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+/***/ }),
+/* 9 */
+/*!*****************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/arrayLikeToArray.js ***!
+  \*****************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+function _arrayLikeToArray(arr, len) {
+  if (len == null || len > arr.length) len = arr.length;
+  for (var i = 0, arr2 = new Array(len); i < len; i++) {
+    arr2[i] = arr[i];
+  }
+  return arr2;
+}
+module.exports = _arrayLikeToArray, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+/***/ }),
+/* 10 */
+/*!****************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/nonIterableRest.js ***!
+  \****************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+function _nonIterableRest() {
+  throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+}
+module.exports = _nonIterableRest, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+/***/ }),
+/* 11 */
+/*!***************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/defineProperty.js ***!
+  \***************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+var toPropertyKey = __webpack_require__(/*! ./toPropertyKey.js */ 12);
+function _defineProperty(obj, key, value) {
+  key = toPropertyKey(key);
+  if (key in obj) {
+    Object.defineProperty(obj, key, {
+      value: value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  } else {
+    obj[key] = value;
+  }
+  return obj;
+}
+module.exports = _defineProperty, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+/***/ }),
+/* 12 */
+/*!**************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/toPropertyKey.js ***!
+  \**************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+var _typeof = __webpack_require__(/*! ./typeof.js */ 13)["default"];
+var toPrimitive = __webpack_require__(/*! ./toPrimitive.js */ 14);
+function toPropertyKey(t) {
+  var i = toPrimitive(t, "string");
+  return "symbol" == _typeof(i) ? i : i + "";
+}
+module.exports = toPropertyKey, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+/***/ }),
+/* 13 */
+/*!*******************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/typeof.js ***!
+  \*******************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+function _typeof(o) {
+  "@babel/helpers - typeof";
+
+  return (module.exports = _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) {
+    return typeof o;
+  } : function (o) {
+    return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o;
+  }, module.exports.__esModule = true, module.exports["default"] = module.exports), _typeof(o);
+}
+module.exports = _typeof, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+/***/ }),
+/* 14 */
+/*!************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/toPrimitive.js ***!
+  \************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+var _typeof = __webpack_require__(/*! ./typeof.js */ 13)["default"];
+function toPrimitive(t, r) {
+  if ("object" != _typeof(t) || !t) return t;
+  var e = t[Symbol.toPrimitive];
+  if (void 0 !== e) {
+    var i = e.call(t, r || "default");
+    if ("object" != _typeof(i)) return i;
+    throw new TypeError("@@toPrimitive must return a primitive value.");
+  }
+  return ("string" === r ? String : Number)(t);
+}
+module.exports = toPrimitive, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+/***/ }),
+/* 15 */
+/*!**********************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/construct.js ***!
+  \**********************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+var setPrototypeOf = __webpack_require__(/*! ./setPrototypeOf.js */ 16);
+var isNativeReflectConstruct = __webpack_require__(/*! ./isNativeReflectConstruct.js */ 17);
+function _construct(t, e, r) {
+  if (isNativeReflectConstruct()) return Reflect.construct.apply(null, arguments);
+  var o = [null];
+  o.push.apply(o, e);
+  var p = new (t.bind.apply(t, o))();
+  return r && setPrototypeOf(p, r.prototype), p;
+}
+module.exports = _construct, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+/***/ }),
+/* 16 */
+/*!***************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/setPrototypeOf.js ***!
+  \***************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+function _setPrototypeOf(o, p) {
+  module.exports = _setPrototypeOf = Object.setPrototypeOf ? Object.setPrototypeOf.bind() : function _setPrototypeOf(o, p) {
+    o.__proto__ = p;
+    return o;
+  }, module.exports.__esModule = true, module.exports["default"] = module.exports;
+  return _setPrototypeOf(o, p);
+}
+module.exports = _setPrototypeOf, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+/***/ }),
+/* 17 */
+/*!*************************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/isNativeReflectConstruct.js ***!
+  \*************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+function _isNativeReflectConstruct() {
+  try {
+    var t = !Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function () {}));
+  } catch (t) {}
+  return (module.exports = _isNativeReflectConstruct = function _isNativeReflectConstruct() {
+    return !!t;
+  }, module.exports.__esModule = true, module.exports["default"] = module.exports)();
+}
+module.exports = _isNativeReflectConstruct, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+/***/ }),
+/* 18 */
+/*!******************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/toConsumableArray.js ***!
+  \******************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+var arrayWithoutHoles = __webpack_require__(/*! ./arrayWithoutHoles.js */ 19);
+var iterableToArray = __webpack_require__(/*! ./iterableToArray.js */ 20);
+var unsupportedIterableToArray = __webpack_require__(/*! ./unsupportedIterableToArray.js */ 8);
+var nonIterableSpread = __webpack_require__(/*! ./nonIterableSpread.js */ 21);
+function _toConsumableArray(arr) {
+  return arrayWithoutHoles(arr) || iterableToArray(arr) || unsupportedIterableToArray(arr) || nonIterableSpread();
+}
+module.exports = _toConsumableArray, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+/***/ }),
+/* 19 */
+/*!******************************************************************!*\
+  !*** ./node_modules/@babel/runtime/helpers/arrayWithoutHoles.js ***!
+  \******************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+var arrayLikeToArray = __webpack_require__(/*! ./arrayLikeToArray.js */ 9);
+function _arrayWithoutHoles(arr) {
+  if (Array.isArray(arr)) return arrayLikeToArray(arr);
+}
+module.exports = _arrayWithoutHoles, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+/***/ }),
+/* 20 */
 /*!****************************************************************!*\
   !*** ./node_modules/@babel/runtime/helpers/iterableToArray.js ***!
   \****************************************************************/
@@ -3380,8 +2884,7 @@ function _iterableToArray(iter) {
 module.exports = _iterableToArray, module.exports.__esModule = true, module.exports["default"] = module.exports;
 
 /***/ }),
-
-/***/ 21:
+/* 21 */
 /*!******************************************************************!*\
   !*** ./node_modules/@babel/runtime/helpers/nonIterableSpread.js ***!
   \******************************************************************/
@@ -3394,8 +2897,7 @@ function _nonIterableSpread() {
 module.exports = _nonIterableSpread, module.exports.__esModule = true, module.exports["default"] = module.exports;
 
 /***/ }),
-
-/***/ 22:
+/* 22 */
 /*!*************************************************************!*\
   !*** ./node_modules/@dcloudio/uni-i18n/dist/uni-i18n.es.js ***!
   \*************************************************************/
@@ -3931,8 +3433,7 @@ function resolveLocaleChain(locale) {
 /* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./node_modules/@dcloudio/uni-mp-weixin/dist/index.js */ 2)["default"], __webpack_require__(/*! ./../../../webpack/buildin/global.js */ 3)))
 
 /***/ }),
-
-/***/ 23:
+/* 23 */
 /*!***************************************************************!*\
   !*** ./node_modules/@babel/runtime/helpers/classCallCheck.js ***!
   \***************************************************************/
@@ -3947,8 +3448,7 @@ function _classCallCheck(instance, Constructor) {
 module.exports = _classCallCheck, module.exports.__esModule = true, module.exports["default"] = module.exports;
 
 /***/ }),
-
-/***/ 24:
+/* 24 */
 /*!************************************************************!*\
   !*** ./node_modules/@babel/runtime/helpers/createClass.js ***!
   \************************************************************/
@@ -3976,8 +3476,7 @@ function _createClass(Constructor, protoProps, staticProps) {
 module.exports = _createClass, module.exports.__esModule = true, module.exports["default"] = module.exports;
 
 /***/ }),
-
-/***/ 25:
+/* 25 */
 /*!******************************************************************************************!*\
   !*** ./node_modules/@dcloudio/vue-cli-plugin-uni/packages/mp-vue/dist/mp.runtime.esm.js ***!
   \******************************************************************************************/
@@ -10058,8 +9557,7 @@ internalMixin(Vue);
 /* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../../../../../webpack/buildin/global.js */ 3)))
 
 /***/ }),
-
-/***/ 26:
+/* 26 */
 /*!******************************************************!*\
   !*** D:/documents/HBuilderProject1/demo2/pages.json ***!
   \******************************************************/
@@ -10069,39 +9567,12 @@ internalMixin(Vue);
 
 
 /***/ }),
-
-/***/ 3:
-/*!***********************************!*\
-  !*** (webpack)/buildin/global.js ***!
-  \***********************************/
-/*! no static exports found */
-/***/ (function(module, exports) {
-
-var g;
-
-// This works in non-strict mode
-g = (function() {
-	return this;
-})();
-
-try {
-	// This works if eval is allowed (see CSP)
-	g = g || new Function("return this")();
-} catch (e) {
-	// This works if the window reference is available
-	if (typeof window === "object") g = window;
-}
-
-// g can still be undefined, but nothing to do about it...
-// We return undefined, instead of nothing here, so it's
-// easier to handle this case. if(!global) { ...}
-
-module.exports = g;
-
-
-/***/ }),
-
-/***/ 32:
+/* 27 */,
+/* 28 */,
+/* 29 */,
+/* 30 */,
+/* 31 */,
+/* 32 */
 /*!**********************************************************************************************************!*\
   !*** ./node_modules/@dcloudio/vue-cli-plugin-uni/packages/vue-loader/lib/runtime/componentNormalizer.js ***!
   \**********************************************************************************************************/
@@ -10232,96 +9703,45 @@ function normalizeComponent (
 
 
 /***/ }),
-
-/***/ 4:
-/*!**********************************************************************!*\
-  !*** ./node_modules/@babel/runtime/helpers/interopRequireDefault.js ***!
-  \**********************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports) {
-
-function _interopRequireDefault(obj) {
-  return obj && obj.__esModule ? obj : {
-    "default": obj
-  };
-}
-module.exports = _interopRequireDefault, module.exports.__esModule = true, module.exports["default"] = module.exports;
-
-/***/ }),
-
-/***/ 5:
-/*!**************************************************************!*\
-  !*** ./node_modules/@babel/runtime/helpers/slicedToArray.js ***!
-  \**************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-var arrayWithHoles = __webpack_require__(/*! ./arrayWithHoles.js */ 6);
-var iterableToArrayLimit = __webpack_require__(/*! ./iterableToArrayLimit.js */ 7);
-var unsupportedIterableToArray = __webpack_require__(/*! ./unsupportedIterableToArray.js */ 8);
-var nonIterableRest = __webpack_require__(/*! ./nonIterableRest.js */ 10);
-function _slicedToArray(arr, i) {
-  return arrayWithHoles(arr) || iterableToArrayLimit(arr, i) || unsupportedIterableToArray(arr, i) || nonIterableRest();
-}
-module.exports = _slicedToArray, module.exports.__esModule = true, module.exports["default"] = module.exports;
-
-/***/ }),
-
-/***/ 6:
-/*!***************************************************************!*\
-  !*** ./node_modules/@babel/runtime/helpers/arrayWithHoles.js ***!
-  \***************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports) {
-
-function _arrayWithHoles(arr) {
-  if (Array.isArray(arr)) return arr;
-}
-module.exports = _arrayWithHoles, module.exports.__esModule = true, module.exports["default"] = module.exports;
-
-/***/ }),
-
-/***/ 7:
-/*!*********************************************************************!*\
-  !*** ./node_modules/@babel/runtime/helpers/iterableToArrayLimit.js ***!
-  \*********************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports) {
-
-function _iterableToArrayLimit(r, l) {
-  var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"];
-  if (null != t) {
-    var e,
-      n,
-      i,
-      u,
-      a = [],
-      f = !0,
-      o = !1;
-    try {
-      if (i = (t = t.call(r)).next, 0 === l) {
-        if (Object(t) !== t) return;
-        f = !1;
-      } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0) {
-        ;
-      }
-    } catch (r) {
-      o = !0, n = r;
-    } finally {
-      try {
-        if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return;
-      } finally {
-        if (o) throw n;
-      }
-    }
-    return a;
-  }
-}
-module.exports = _iterableToArrayLimit, module.exports.__esModule = true, module.exports["default"] = module.exports;
-
-/***/ }),
-
-/***/ 71:
+/* 33 */,
+/* 34 */,
+/* 35 */,
+/* 36 */,
+/* 37 */,
+/* 38 */,
+/* 39 */,
+/* 40 */,
+/* 41 */,
+/* 42 */,
+/* 43 */,
+/* 44 */,
+/* 45 */,
+/* 46 */,
+/* 47 */,
+/* 48 */,
+/* 49 */,
+/* 50 */,
+/* 51 */,
+/* 52 */,
+/* 53 */,
+/* 54 */,
+/* 55 */,
+/* 56 */,
+/* 57 */,
+/* 58 */,
+/* 59 */,
+/* 60 */,
+/* 61 */,
+/* 62 */,
+/* 63 */,
+/* 64 */,
+/* 65 */,
+/* 66 */,
+/* 67 */,
+/* 68 */,
+/* 69 */,
+/* 70 */,
+/* 71 */
 /*!************************************************************************************************!*\
   !*** ./node_modules/@dcloudio/vue-cli-plugin-uni/packages/@babel/runtime/regenerator/index.js ***!
   \************************************************************************************************/
@@ -10334,8 +9754,7 @@ var runtime = __webpack_require__(/*! @babel/runtime/helpers/regeneratorRuntime 
 module.exports = runtime;
 
 /***/ }),
-
-/***/ 72:
+/* 72 */
 /*!*******************************************************************!*\
   !*** ./node_modules/@babel/runtime/helpers/regeneratorRuntime.js ***!
   \*******************************************************************/
@@ -10656,8 +10075,7 @@ function _regeneratorRuntime() {
 module.exports = _regeneratorRuntime, module.exports.__esModule = true, module.exports["default"] = module.exports;
 
 /***/ }),
-
-/***/ 73:
+/* 73 */
 /*!*****************************************************************!*\
   !*** ./node_modules/@babel/runtime/helpers/asyncToGenerator.js ***!
   \*****************************************************************/
@@ -10697,44 +10115,679 @@ function _asyncToGenerator(fn) {
 module.exports = _asyncToGenerator, module.exports.__esModule = true, module.exports["default"] = module.exports;
 
 /***/ }),
-
-/***/ 8:
-/*!***************************************************************************!*\
-  !*** ./node_modules/@babel/runtime/helpers/unsupportedIterableToArray.js ***!
-  \***************************************************************************/
+/* 74 */,
+/* 75 */,
+/* 76 */,
+/* 77 */,
+/* 78 */,
+/* 79 */,
+/* 80 */,
+/* 81 */,
+/* 82 */,
+/* 83 */,
+/* 84 */,
+/* 85 */,
+/* 86 */,
+/* 87 */,
+/* 88 */,
+/* 89 */,
+/* 90 */,
+/* 91 */,
+/* 92 */,
+/* 93 */,
+/* 94 */,
+/* 95 */,
+/* 96 */,
+/* 97 */,
+/* 98 */
+/*!*******************************************************************!*\
+  !*** D:/documents/HBuilderProject1/demo2/utils/record-manager.js ***!
+  \*******************************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
-var arrayLikeToArray = __webpack_require__(/*! ./arrayLikeToArray.js */ 9);
-function _unsupportedIterableToArray(o, minLen) {
-  if (!o) return;
-  if (typeof o === "string") return arrayLikeToArray(o, minLen);
-  var n = Object.prototype.toString.call(o).slice(8, -1);
-  if (n === "Object" && o.constructor) n = o.constructor.name;
-  if (n === "Map" || n === "Set") return Array.from(o);
-  if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return arrayLikeToArray(o, minLen);
-}
-module.exports = _unsupportedIterableToArray, module.exports.__esModule = true, module.exports["default"] = module.exports;
+"use strict";
+/* WEBPACK VAR INJECTION */(function(uni) {
+
+var _interopRequireDefault = __webpack_require__(/*! @babel/runtime/helpers/interopRequireDefault */ 4);
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = exports.RecordManager = void 0;
+var _classCallCheck2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/classCallCheck */ 23));
+var _createClass2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/createClass */ 24));
+var _defineProperty2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/defineProperty */ 11));
+// 录音管理器，支持多实例
+var RecordManager = /*#__PURE__*/function () {
+  function RecordManager() {
+    var id = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 'default';
+    (0, _classCallCheck2.default)(this, RecordManager);
+    this.id = id;
+    this.tempFilePath = '';
+    this.isRecording = false;
+    this.isStopping = false; // 新增：是否正在停止录音
+    this.recordTime = 0;
+    this.timer = null;
+    this.onTimeUpdate = null; //用于获取录音时长和格式化时间
+    this.onVolumeUpdate = null;
+    this.stopResolve = null;
+    this.instanceId = Date.now() + Math.random();
+    this.stopTimeout = null;
+
+    // 注册实例
+    RecordManager.instances.set(this.instanceId, this);
+    console.log("\u521B\u5EFA\u5F55\u97F3\u7BA1\u7406\u5668\u5B9E\u4F8B: ".concat(this.id, ", \u5B9E\u4F8BID: ").concat(this.instanceId));
+  }
+  /*
+  uni.getRecorderManager() 是全局唯一的：
+  uni-app 中，无论调用多少次 uni.getRecorderManager()，返回的都是同一个录音管理器实例（类似单例模式），无法为每个 RecordManager 实例创建独立的录音管理器。
+   由于录音管理器是全局的，其 onStop/onError 事件会在 “任何实例停止录音” 或 “任何实例发生错误” 时触发。
+  此时需要通过 RecordManager.instances 遍历所有实例，将事件分发给对应的实例（每个实例通过 isRecording 判断是否需要处理该事件）
+   如果不通过 isInitialized 控制，每次创建 RecordManager 实例都初始化一次，会导致 onStop/onError 事件被重复绑定，引发多次回调的问题。
+  */
+
+  // 静态初始化录音管理器
+  (0, _createClass2.default)(RecordManager, [{
+    key: "init",
+    value:
+    // 初始化实例
+    function init() {
+      // 确保静态录音管理器已初始化
+      RecordManager.initStaticRecorder();
+      this.recorderManager = RecordManager.recorderManager;
+      console.log("\u521D\u59CB\u5316\u5F55\u97F3\u7BA1\u7406\u5668\u5B9E\u4F8B: ".concat(this.id));
+    }
+
+    // 处理录音结束事件
+  }, {
+    key: "handleStopEvent",
+    value: function handleStopEvent(res) {
+      console.log("".concat(this.id, " \u5904\u7406\u5F55\u97F3\u7ED3\u675F\u4E8B\u4EF6\uFF0C\u5F53\u524DisRecording: ").concat(this.isRecording));
+
+      // 只有当前实例处于录音状态或正在停止时才处理
+      if (this.isRecording || this.isStopping) {
+        this.isRecording = false;
+        this.isStopping = false;
+        this.stopTimer();
+        this.tempFilePath = res.tempFilePath;
+
+        // 清除超时计时器
+        if (this.stopTimeout) {
+          clearTimeout(this.stopTimeout);
+          this.stopTimeout = null;
+        }
+        if (this.stopResolve) {
+          console.log("".concat(this.id, " \u8C03\u7528stopResolve"));
+          this.stopResolve();
+          this.stopResolve = null;
+        }
+      }
+    }
+
+    // 处理录音错误事件
+  }, {
+    key: "handleErrorEvent",
+    value: function handleErrorEvent(err) {
+      console.log("".concat(this.id, " \u5904\u7406\u5F55\u97F3\u9519\u8BEF\u4E8B\u4EF6\uFF0C\u5F53\u524DisRecording: ").concat(this.isRecording));
+
+      // 只有当前实例处于录音状态或正在停止时才处理
+      if (this.isRecording || this.isStopping) {
+        this.isRecording = false;
+        this.isStopping = false;
+        this.stopTimer();
+
+        // 清除超时计时器
+        if (this.stopTimeout) {
+          clearTimeout(this.stopTimeout);
+          this.stopTimeout = null;
+        }
+        if (this.stopResolve) {
+          console.log("".concat(this.id, " \u8C03\u7528stopResolve\uFF08\u9519\u8BEF\uFF09"));
+          this.stopResolve();
+          this.stopResolve = null;
+        }
+        uni.showToast({
+          title: '录音失败: ' + (err.errMsg || err.message),
+          icon: 'none'
+        });
+      }
+    }
+
+    // 设置时间更新回调
+  }, {
+    key: "setTimeUpdateCallback",
+    value: function setTimeUpdateCallback(callback) {
+      this.onTimeUpdate = callback;
+    }
+
+    // 设置音量更新回调
+  }, {
+    key: "setVolumeUpdateCallback",
+    value: function setVolumeUpdateCallback(callback) {
+      this.onVolumeUpdate = callback;
+    }
+
+    // 处理音频帧事件
+  }, {
+    key: "handleFrameRecordedEvent",
+    value: function handleFrameRecordedEvent(res) {
+      // 如果正在停止或已停止，立即返回，不再处理音频帧
+      if (this.isStopping || !this.isRecording) {
+        return;
+      }
+
+      // 尝试从不同的属性中获取音频数据
+      var audioData = res.frameBuffer || res.data || res.buffer;
+      if (audioData) {
+        // 如果是ArrayBuffer，需要转换为Uint8Array
+        var frameData = audioData;
+        if (audioData instanceof ArrayBuffer) {
+          frameData = new Uint8Array(audioData);
+        }
+
+        // 计算音量
+        var volume = this.calculateVolume(frameData);
+
+        // 触发音量更新回调
+        if (this.onVolumeUpdate && !this.isStopping) {
+          this.onVolumeUpdate(volume);
+        }
+      }
+    }
+
+    // 计算音量
+  }, {
+    key: "calculateVolume",
+    value: function calculateVolume(frameData) {
+      if (!frameData || frameData.length === 0) return 0;
+      var sumSquared = 0;
+      var count = 0;
+
+      // 对 MP3 编码数据，我们直接统计字节的偏移程度作为活跃度参考
+      for (var i = 0; i < frameData.length; i += 2) {
+        // 将字节映射到 -128 到 127
+        var sample = frameData[i] - 128;
+        sumSquared += sample * sample;
+        count++;
+      }
+      var rms = Math.sqrt(sumSquared / count);
+
+      // 针对 MP3 编码帧的特殊映射：
+      // 1. 经过测试，MP3 帧在静音时的字节能量 rms 通常在 40-60 之间
+      // 2. 我们将门限设为 65，低于此值直接归零
+      // 3. 使用更强的二次方曲线
+      var volume = 0;
+      if (rms > 65) {
+        // 映射范围：(rms - 门限) / (最大预期能量 - 门限)
+        // 这里取 100 为最大预期能量
+        var normalized = Math.min((rms - 65) / 35, 1);
+        volume = Math.round(Math.pow(normalized, 2) * 100);
+      }
+      return Math.min(Math.max(volume, 0), 100);
+    }
+
+    // 开始录音
+  }, {
+    key: "startRecord",
+    value: function startRecord() {
+      var _this = this;
+      return new Promise(function (resolve, reject) {
+        if (!_this.recorderManager) {
+          _this.init();
+        }
+
+        // 检查权限
+        uni.getSetting({
+          success: function success(res) {
+            if (!res.authSetting['scope.record']) {
+              // 申请录音权限
+              uni.authorize({
+                scope: 'scope.record',
+                success: function success() {
+                  _this._doStartRecord();
+                  resolve();
+                },
+                fail: function fail() {
+                  uni.showModal({
+                    title: '提示',
+                    content: '需要录音权限，请允许使用麦克风',
+                    success: function success(modalRes) {
+                      if (modalRes.confirm) {
+                        uni.openSetting();
+                      }
+                    }
+                  });
+                  reject('权限被拒绝');
+                }
+              });
+            } else {
+              // 已有权限
+              _this._doStartRecord();
+              resolve();
+            }
+          },
+          fail: function fail(err) {
+            reject('检查权限失败: ' + (err.errMsg || err.message));
+          }
+        });
+      });
+    }
+
+    // 执行开始录音
+  }, {
+    key: "_doStartRecord",
+    value: function _doStartRecord() {
+      // 重置停止标志
+      this.isStopping = false;
+
+      // 配置录音参数，启用音频帧监听
+      var recordOptions = {
+        duration: 600000,
+        // 最大录音时长10分钟
+        sampleRate: 16000,
+        // 采样率
+        numberOfChannels: 1,
+        // 录音通道数
+        encodeBitRate: 96000,
+        // 编码码率
+        format: 'mp3',
+        // 音频格式
+        // 启用音频帧数据回调（每帧大小，单位KB）
+        // 设置frameSize可以触发onFrameRecorded事件
+        frameSize: 4 // 4KB，减少回调频率，提高停止响应速度
+      };
+
+      // 尝试使用配置参数启动录音
+      try {
+        console.log("".concat(this.id, " \u542F\u52A8\u5F55\u97F3\uFF0C\u914D\u7F6E:"), recordOptions);
+        this.recorderManager.start(recordOptions);
+      } catch (error) {
+        // 如果参数不支持，使用默认方式
+        console.warn("".concat(this.id, " \u4F7F\u7528\u914D\u7F6E\u53C2\u6570\u542F\u52A8\u5931\u8D25\uFF0C\u4F7F\u7528\u9ED8\u8BA4\u65B9\u5F0F:"), error);
+        this.recorderManager.start();
+      }
+      this.isRecording = true;
+      this.startTimer();
+      console.log("".concat(this.id, " \u5F55\u97F3\u5DF2\u542F\u52A8"));
+    }
+
+    // 停止录音
+  }, {
+    key: "stopRecord",
+    value: function stopRecord() {
+      var _this2 = this;
+      return new Promise(function (resolve) {
+        console.log("".concat(_this2.id, " \u5F00\u59CB\u505C\u6B62\u5F55\u97F3\uFF0C\u5F53\u524DisRecording: ").concat(_this2.isRecording));
+        if (_this2.recorderManager && _this2.isRecording) {
+          // 立即设置停止标志，阻止后续帧处理
+          _this2.isStopping = true;
+
+          // 立即停止计时器
+          _this2.stopTimer();
+
+          // 保存resolve函数
+          _this2.stopResolve = resolve;
+
+          // 调用录音管理器的stop方法
+          _this2.recorderManager.stop();
+
+          // 添加超时处理，防止onStop回调不触发导致Promise永远pending
+          _this2.stopTimeout = setTimeout(function () {
+            console.warn("".concat(_this2.id, " \u5F55\u97F3\u505C\u6B62\u8D85\u65F6\uFF0C\u5F3A\u5236resolve"));
+
+            // 更新状态
+            _this2.isRecording = false;
+            _this2.isStopping = false;
+
+            // 调用resolve
+            if (_this2.stopResolve) {
+              _this2.stopResolve();
+              _this2.stopResolve = null;
+            }
+
+            // 清除超时计时器
+            _this2.stopTimeout = null;
+          }, 1500); // 缩短超时时间到1.5秒
+
+          console.log("".concat(_this2.id, " \u5DF2\u8C03\u7528recorderManager.stop()"));
+        } else {
+          console.log("".concat(_this2.id, " \u672A\u5904\u4E8E\u5F55\u97F3\u72B6\u6001\uFF0C\u76F4\u63A5resolve"));
+          resolve();
+        }
+      });
+    }
+
+    // 开始计时
+  }, {
+    key: "startTimer",
+    value: function startTimer() {
+      var _this3 = this;
+      // 先清除之前可能存在的计时器，防止多个计时器同时运行
+      this.stopTimer();
+      this.recordTime = 0;
+      this.timer = setInterval(function () {
+        _this3.recordTime++; // 只是更新了类的属性
+        if (_this3.onTimeUpdate) {
+          _this3.onTimeUpdate(_this3.recordTime, _this3.getFormattedTime());
+        }
+      }, 1000);
+    }
+
+    // 停止计时
+  }, {
+    key: "stopTimer",
+    value: function stopTimer() {
+      console.log("".concat(this.id, " \u505C\u6B62\u8BA1\u65F6"));
+      if (this.timer) {
+        clearInterval(this.timer);
+        this.timer = null;
+      }
+
+      // 同时清除可能存在的停止超时计时器
+      if (this.stopTimeout) {
+        clearTimeout(this.stopTimeout);
+        this.stopTimeout = null;
+      }
+    }
+
+    // 获取录音文件路径
+  }, {
+    key: "getRecordFile",
+    value: function getRecordFile() {
+      return this.tempFilePath;
+    }
+
+    // 格式化时间
+  }, {
+    key: "getFormattedTime",
+    value: function getFormattedTime() {
+      var minutes = Math.floor(this.recordTime / 60);
+      var seconds = this.recordTime % 60;
+      return "".concat(minutes.toString().padStart(2, '0'), ":").concat(seconds.toString().padStart(2, '0'));
+    }
+
+    // 清理
+  }, {
+    key: "destroy",
+    value: function destroy() {
+      console.log("".concat(this.id, " \u5F00\u59CB\u6E05\u7406"));
+
+      // 停止录音
+      if (this.isRecording) {
+        this.stopRecord();
+      }
+
+      // 停止计时和超时计时器
+      this.stopTimer();
+
+      // 从实例列表中移除
+      RecordManager.instances.delete(this.instanceId);
+      console.log("".concat(this.id, " \u6E05\u7406\u5B8C\u6210"));
+    }
+  }], [{
+    key: "initStaticRecorder",
+    value: function initStaticRecorder() {
+      if (!RecordManager.isInitialized) {
+        console.log('初始化静态录音管理器');
+        RecordManager.recorderManager = uni.getRecorderManager();
+
+        // 监听录音结束（静态事件，通知所有实例）
+        RecordManager.recorderManager.onStop(function (res) {
+          console.log('静态录音结束事件', res);
+
+          // 通知所有活跃实例
+          RecordManager.instances.forEach(function (instance) {
+            instance.handleStopEvent(res);
+          });
+        });
+
+        // 监听录音错误（静态事件，通知所有实例）
+        RecordManager.recorderManager.onError(function (err) {
+          console.error('静态录音错误事件:', err);
+
+          // 通知所有活跃实例
+          RecordManager.instances.forEach(function (instance) {
+            instance.handleErrorEvent(err);
+          });
+        });
+
+        // 监听音频帧数据（用于计算音量）
+        RecordManager.recorderManager.onFrameRecorded(function (res) {
+          // 通知所有活跃实例
+          RecordManager.instances.forEach(function (instance) {
+            if (instance.isRecording) {
+              instance.handleFrameRecordedEvent(res);
+            }
+          });
+        });
+        RecordManager.isInitialized = true;
+      }
+    }
+  }]);
+  return RecordManager;
+}(); // 导出单例
+exports.RecordManager = RecordManager;
+(0, _defineProperty2.default)(RecordManager, "recorderManager", null);
+(0, _defineProperty2.default)(RecordManager, "instances", new Map());
+(0, _defineProperty2.default)(RecordManager, "isInitialized", false);
+var recordManagerInstance = new RecordManager();
+var _default = recordManagerInstance; //导出类
+exports.default = _default;
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./node_modules/@dcloudio/uni-mp-weixin/dist/index.js */ 2)["default"]))
 
 /***/ }),
-
-/***/ 9:
-/*!*****************************************************************!*\
-  !*** ./node_modules/@babel/runtime/helpers/arrayLikeToArray.js ***!
-  \*****************************************************************/
+/* 99 */,
+/* 100 */,
+/* 101 */,
+/* 102 */,
+/* 103 */,
+/* 104 */,
+/* 105 */,
+/* 106 */,
+/* 107 */
+/*!********************************************************************************!*\
+  !*** D:/documents/HBuilderProject1/demo2/pages/canvas-record/canvas-record.js ***!
+  \********************************************************************************/
 /*! no static exports found */
-/***/ (function(module, exports) {
+/***/ (function(module, exports, __webpack_require__) {
 
-function _arrayLikeToArray(arr, len) {
-  if (len == null || len > arr.length) len = arr.length;
-  for (var i = 0, arr2 = new Array(len); i < len; i++) {
-    arr2[i] = arr[i];
+var _classCallCheck = __webpack_require__(/*! @babel/runtime/helpers/classCallCheck */ 23);
+var _createClass = __webpack_require__(/*! @babel/runtime/helpers/createClass */ 24);
+// Canvas录音波形图管理器
+var CanvasWaveformManager = /*#__PURE__*/function () {
+  "use strict";
+
+  function CanvasWaveformManager(canvasContext, canvasWidth, canvasHeight) {
+    _classCallCheck(this, CanvasWaveformManager);
+    this.canvasContext = canvasContext;
+    this.canvasWidth = canvasWidth;
+    this.canvasHeight = canvasHeight;
+    this.waveformPoints = [];
+    this.maxPoints = 200; // 最大波形点数
+    this.lastDrawTime = 0;
+    this.drawInterval = 50; // 绘制间隔（ms）
+    this.currentVolume = 0;
   }
-  return arr2;
-}
-module.exports = _arrayLikeToArray, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+  // 更新音量
+  _createClass(CanvasWaveformManager, [{
+    key: "updateVolume",
+    value: function updateVolume(volume) {
+      this.currentVolume = volume;
+      this.addWaveformPoint(volume);
+    }
+
+    // 添加波形点
+  }, {
+    key: "addWaveformPoint",
+    value: function addWaveformPoint(volume) {
+      // 将音量转换为波形高度（0-100 -> 0-canvasHeight/2）
+      var maxHeight = this.canvasHeight / 2;
+      var height = volume / 100 * maxHeight;
+
+      // 添加新点
+      this.waveformPoints.push({
+        volume: volume,
+        height: height,
+        timestamp: Date.now()
+      });
+
+      // 限制点数，保持滚动效果
+      if (this.waveformPoints.length > this.maxPoints) {
+        this.waveformPoints.shift();
+      }
+
+      // 使用节流控制绘制频率，避免过度绘制
+      var now = Date.now();
+      if (now - this.lastDrawTime >= this.drawInterval) {
+        this.drawWaveform();
+        this.lastDrawTime = now;
+      }
+    }
+
+    // 绘制波形
+  }, {
+    key: "drawWaveform",
+    value: function drawWaveform() {
+      var ctx = this.canvasContext;
+      if (!ctx || this.waveformPoints.length === 0) return;
+
+      // 清空画布
+      ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+
+      // 绘制背景
+      ctx.setFillStyle('#f5f5f5');
+      ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
+
+      // 绘制中心线
+      ctx.setStrokeStyle('#e0e0e0');
+      ctx.setLineWidth(1);
+      ctx.beginPath();
+      ctx.moveTo(0, this.canvasHeight / 2);
+      ctx.lineTo(this.canvasWidth, this.canvasHeight / 2);
+      ctx.stroke();
+
+      // 计算每个点的X坐标间隔
+      var pointSpacing = this.canvasWidth / this.maxPoints;
+      var centerY = this.canvasHeight / 2;
+
+      // 绘制上半部分波形（绿色）
+      ctx.setStrokeStyle('#07c160');
+      ctx.setLineWidth(2);
+      ctx.beginPath();
+      for (var i = 0; i < this.waveformPoints.length; i++) {
+        var x = i * pointSpacing;
+        var y = centerY - this.waveformPoints[i].height;
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+
+      // 绘制下半部分波形（对称）
+      ctx.beginPath();
+      for (var _i = 0; _i < this.waveformPoints.length; _i++) {
+        var _x = _i * pointSpacing;
+        var _y = centerY + this.waveformPoints[_i].height;
+        if (_i === 0) {
+          ctx.moveTo(_x, _y);
+        } else {
+          ctx.lineTo(_x, _y);
+        }
+      }
+      ctx.stroke();
+
+      // 填充波形区域（渐变效果）
+      if (this.waveformPoints.length > 1) {
+        // 上半部分填充
+        ctx.setFillStyle('rgba(7, 193, 96, 0.2)');
+        ctx.beginPath();
+        ctx.moveTo(0, centerY);
+        for (var _i2 = 0; _i2 < this.waveformPoints.length; _i2++) {
+          var _x2 = _i2 * pointSpacing;
+          var _y2 = centerY - this.waveformPoints[_i2].height;
+          ctx.lineTo(_x2, _y2);
+        }
+        ctx.lineTo((this.waveformPoints.length - 1) * pointSpacing, centerY);
+        ctx.closePath();
+        ctx.fill();
+
+        // 下半部分填充
+        ctx.beginPath();
+        ctx.moveTo(0, centerY);
+        for (var _i3 = 0; _i3 < this.waveformPoints.length; _i3++) {
+          var _x3 = _i3 * pointSpacing;
+          var _y3 = centerY + this.waveformPoints[_i3].height;
+          ctx.lineTo(_x3, _y3);
+        }
+        ctx.lineTo((this.waveformPoints.length - 1) * pointSpacing, centerY);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // 绘制当前音量指示线
+      if (this.waveformPoints.length > 0) {
+        var lastIndex = this.waveformPoints.length - 1;
+        var _x4 = lastIndex * pointSpacing;
+        ctx.setStrokeStyle('#ff4444');
+        ctx.setLineWidth(2);
+        ctx.beginPath();
+        ctx.moveTo(_x4, 0);
+        ctx.lineTo(_x4, this.canvasHeight);
+        ctx.stroke();
+      }
+
+      // 提交绘制
+      ctx.draw();
+    }
+
+    // 绘制初始背景
+  }, {
+    key: "drawBackground",
+    value: function drawBackground() {
+      var ctx = this.canvasContext;
+      if (!ctx) return;
+
+      // 清空画布
+      ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+
+      // 绘制背景
+      ctx.setFillStyle('#f5f5f5');
+      ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
+
+      // 绘制中心线
+      ctx.setStrokeStyle('#e0e0e0');
+      ctx.setLineWidth(1);
+      ctx.beginPath();
+      ctx.moveTo(0, this.canvasHeight / 2);
+      ctx.lineTo(this.canvasWidth, this.canvasHeight / 2);
+      ctx.stroke();
+      ctx.draw();
+    }
+
+    // 重置波形
+  }, {
+    key: "reset",
+    value: function reset() {
+      this.waveformPoints = [];
+      this.currentVolume = 0;
+      this.drawBackground();
+    }
+
+    // 更新Canvas尺寸
+  }, {
+    key: "updateCanvasSize",
+    value: function updateCanvasSize(width, height) {
+      this.canvasWidth = width;
+      this.canvasHeight = height;
+    }
+  }]);
+  return CanvasWaveformManager;
+}(); // 导出
+module.exports = CanvasWaveformManager;
 
 /***/ })
-
-}]);
+]]);
 //# sourceMappingURL=../../.sourcemap/mp-weixin/common/vendor.js.map

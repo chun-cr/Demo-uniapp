@@ -312,7 +312,7 @@ export default {
           title: '开始上传录音',
           mask: true
         })
-        const SERVER_URL = 'https://4c212857c50add03-122-224-247-54.serveousercontent.com'
+        const SERVER_URL = 'http://192.168.8.100:3000'
         //使用uni.uploadFile API
         const uploadTask = uni.uploadFile({
           url: `${SERVER_URL}/api/upload`,
